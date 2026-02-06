@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
+console.log(process.env.NEWS_API_KEY ? "✅ News API key loaded" : "⚠️ News API key missing in .env");
 
 import app from "./app.js";
 import connectDB from "./config/db.js";
