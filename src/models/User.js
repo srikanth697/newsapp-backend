@@ -23,6 +23,11 @@ const userSchema = new mongoose.Schema(
         // Forgot password
         resetOTP: String,
         resetOTPExpire: Date,
+
+        savedNews: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "News"
+        }],
     },
     { timestamps: true }
 );

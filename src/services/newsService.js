@@ -13,16 +13,20 @@ export const fetchIndiaNews = async () => {
     );
 
     for (const article of response.data.articles) {
-        if (!article.title) continue; // Skip articles without titles
+        if (!article.title) continue;
 
         await News.updateOne(
             { title: article.title },
             {
                 title: article.title,
                 description: article.description,
+                content: article.content,
                 image: article.urlToImage,
+                sourceUrl: article.url,
+
                 country: "IN",
-                category: "general",
+                category: "general", // Default for top-headlines if category not specified
+
                 publishedAt: article.publishedAt,
             },
             { upsert: true }
