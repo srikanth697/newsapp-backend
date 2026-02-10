@@ -4,7 +4,12 @@ import languageRoutes from "./routes/languageRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
 
-import { fetchIndiaNews } from "./services/newsService.js";
+import {
+    fetchIndiaNews,
+    fetchInternationalNews,
+    fetchCurrentAffairs,
+    fetchHealthNews
+} from "./services/newsService.js";
 
 const app = express();
 app.use(cors());
@@ -17,12 +22,17 @@ app.use("/api/auth", authRoutes);
 // 🔹 Manual News Fetch Route
 app.get("/fetch-news", async (req, res) => {
     try {
+        console.log("Starting full news fetch...");
         await fetchIndiaNews();
-        res.json({ message: "News fetched & saved" });
+        await fetchInternationalNews();
+        await fetchCurrentAffairs();
+        await fetchHealthNews();
+        res.json({ message: "All news fetched successfully" });
     } catch (err) {
-        res.status(500).json({ error: "Fetch failed", details: err.message });
+        res.status(500).json({ error: "News fetch failed", details: err.message });
     }
 });
+
 
 // 🔹 News APIs
 app.use("/news", newsRoutes);
