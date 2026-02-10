@@ -9,11 +9,18 @@ const router = express.Router();
 // Example: /news?country=IN or /news?category=sports or /news?q=cricket
 router.get("/", async (req, res) => {
     try {
-        const { category, country, q } = req.query;
+        const { category, country, q, yesterday } = req.query;
 
         const filter = {};
         if (category) filter.category = category;
         if (country) filter.country = country;
+
+        // 🕓 YESTERDAY LOGIC
+        if (yesterday === "true") {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            filter.publishedAt = { $gte: d };
+        }
 
         // 🔍 SEARCH LOGIC (Option 4)
         if (q) {

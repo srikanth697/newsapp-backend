@@ -8,7 +8,8 @@ import {
     fetchIndiaNews,
     fetchInternationalNews,
     fetchCurrentAffairs,
-    fetchHealthNews
+    fetchHealthNews,
+    fetchTechNews
 } from "./services/newsService.js";
 
 const app = express();
@@ -27,6 +28,7 @@ app.get("/fetch-news", async (req, res) => {
         await fetchInternationalNews();
         await fetchCurrentAffairs();
         await fetchHealthNews();
+        await fetchTechNews();
         res.json({ message: "All news fetched successfully" });
     } catch (err) {
         res.status(500).json({ error: "News fetch failed", details: err.message });

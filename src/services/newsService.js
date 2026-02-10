@@ -151,3 +151,39 @@ export const fetchHealthNews = async () => {
         );
     }
 };
+
+/* ----------------------------------
+   5️⃣ TECH NEWS
+----------------------------------- */
+export const fetchTechNews = async () => {
+    const res = await axios.get(
+        "https://newsapi.org/v2/top-headlines",
+        {
+            params: {
+                category: "technology",
+                apiKey: API_KEY,
+                language: "en",
+                pageSize: 20,
+            },
+        }
+    );
+
+    for (const article of res.data.articles) {
+        if (!article.title) continue;
+        await News.updateOne(
+            { title: article.title },
+            {
+                title: article.title,
+                description: article.description,
+                content: article.content,
+                image: article.urlToImage,
+                sourceUrl: article.url,
+                category: "tech",
+                country: "GLOBAL",
+                publishedAt: article.publishedAt,
+            },
+            { upsert: true }
+        );
+    }
+};
+

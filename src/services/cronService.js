@@ -3,7 +3,8 @@ import {
     fetchIndiaNews,
     fetchInternationalNews,
     fetchCurrentAffairs,
-    fetchHealthNews
+    fetchHealthNews,
+    fetchTechNews
 } from "./newsService.js";
 
 const initCron = () => {
@@ -15,6 +16,7 @@ const initCron = () => {
             await fetchInternationalNews();
             await fetchCurrentAffairs();
             await fetchHealthNews();
+            await fetchTechNews();
             console.log("✅ Scheduled full fetch completed.");
         } catch (error) {
             console.error("❌ Scheduled fetch failed:", error.message);
