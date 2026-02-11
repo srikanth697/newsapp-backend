@@ -125,30 +125,39 @@ router.post("/:id/save", async (req, res) => {
 });
 
 
-// 🔹 SUBMIT NEWS (User Posting with AI Correction)
+// 🔹 SUBMIT NEWS (User Posting - Optional AI Correction)
 router.post("/submit", protect, async (req, res) => {
     try {
-        const { title, description, image, sourceUrl, category, country } = req.body;
+        const { title, description, image, sourceUrl, category, country, useAI } = req.body;
 
         if (!title || !description) {
             return res.status(400).json({ error: "Title and Description are required" });
         }
 
-        // 🤖 Step 1: Run AI Content Correction
-        const corrected = await correctNewsContent(title, description);
+        let finalTitle = title;
+        let finalDescription = description;
+        let aiApplied = false;
+
+        // 🤖 Step 1: Run AI Content Correction ONLY if useAI is true
+        if (useAI === true) {
+            const corrected = await correctNewsContent(title, description);
+            finalTitle = corrected.title;
+            finalDescription = corrected.description;
+            aiApplied = true;
+        }
 
         // 📁 Step 2: Validate Category
         const finalCategory = VALID_CATEGORIES.includes(category) ? category : "general";
 
         const news = await News.create({
-            title: corrected.title,
-            description: corrected.description,
+            title: finalTitle,
+            description: finalDescription,
             image,
             sourceUrl,
             category: finalCategory,
             country: country || "GLOBAL",
             author: req.userId,
-            status: "pending", // Always pending when user posts
+            status: "pending",
             isUserPost: true
         });
 
@@ -157,14 +166,17 @@ router.post("/submit", protect, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "News submitted! Our AI has polished your content for professional look.",
-            aiCorrected: true,
+            message: aiApplied
+                ? "News submitted! Our AI has polished your content."
+                : "News submitted and pending approval.",
+            aiCorrected: aiApplied,
             news
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 // 🔹 GET MY POSTS (Check Status)
