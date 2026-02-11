@@ -125,7 +125,26 @@ router.post("/:id/save", async (req, res) => {
 });
 
 
-// 🔹 SUBMIT NEWS (User Posting - Optional AI Correction)
+// 🔹 STANDALONE AI FIX (For the 'AI Fix' button in UI)
+router.post("/ai-fix", protect, async (req, res) => {
+    try {
+        const { title, description } = req.body;
+        if (!title && !description) {
+            return res.status(400).json({ error: "Title or Description required for AI Fix" });
+        }
+
+        const corrected = await correctNewsContent(title, description);
+        res.json({
+            success: true,
+            title: corrected.title,
+            description: corrected.description
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🔹 SUBMIT NEWS (User Posting)
 router.post("/submit", protect, async (req, res) => {
     try {
         const { title, description, image, sourceUrl, category, country, useAI } = req.body;
