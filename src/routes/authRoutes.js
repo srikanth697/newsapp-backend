@@ -7,6 +7,7 @@ import {
     resetPassword,
     getProfile,
     updateProfile,
+    updateSettings,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -21,6 +22,7 @@ router.post("/reset-password", resetPassword);
 // User Profile
 router.get("/profile", protect, getProfile);
 router.post("/update", protect, updateProfile);
+router.post("/settings/update", protect, updateSettings);
 
 
 export default router;

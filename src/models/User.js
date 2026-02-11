@@ -39,6 +39,22 @@ const userSchema = new mongoose.Schema(
         postsCount: {
             type: Number,
             default: 0
+        },
+        darkMode: {
+            type: Boolean,
+            default: false
+        },
+        language: {
+            type: String,
+            default: "en"
+        },
+        isVerified: {
+            type: Boolean,
+            default: false
+        },
+        avatar: {
+            type: String,
+            default: "" // URL to image
         }
     },
     { timestamps: true }

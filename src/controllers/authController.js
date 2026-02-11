@@ -238,3 +238,34 @@ export const updateProfile = async (req, res) => {
     }
 };
 
+/* =========================
+   UPDATE SETTINGS (Dark Mode / Language)
+========================= */
+export const updateSettings = async (req, res) => {
+    try {
+        const { darkMode, language } = req.body;
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (typeof darkMode !== 'undefined') user.darkMode = darkMode;
+        if (language) user.language = language;
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: "Settings updated",
+            settings: {
+                darkMode: user.darkMode,
+                language: user.language
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
