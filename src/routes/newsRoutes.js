@@ -50,6 +50,9 @@ router.get("/saved", protect, async (req, res) => {
 // 🔹 READ MORE (Detailed News)
 router.get("/:id", async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid News ID format. Use a real MongoDB ID." });
+        }
         const news = await News.findById(req.params.id);
         if (!news) return res.status(404).json({ message: "News not found" });
         res.json(news);
@@ -58,58 +61,59 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// 🔹 LIKE NEWS (Option 1: Prevent Multiple Likes)
-router.post("/:id/like", protect, async (req, res) => {
+// 🔹 LIKE NEWS (Public Counter)
+router.post("/:id/like", async (req, res) => {
     try {
-        const news = await News.findById(req.params.id);
-        if (!news) return res.status(404).json({ message: "News not found" });
-
-        // Check if user already liked
-        const alreadyLiked = news.likedBy.includes(req.userId);
-
-        if (alreadyLiked) {
-            // 👎 Unlike logic: Remove user from likedBy and decrement likes
-            news.likedBy = news.likedBy.filter(id => id.toString() !== req.userId);
-            news.likes = Math.max(0, news.likes - 1);
-            await news.save();
-            return res.json({ liked: false, likes: news.likes });
-        } else {
-            // 👍 Like logic: Add user to likedBy and increment likes
-            news.likedBy.push(req.userId);
-            news.likes += 1;
-            await news.save();
-            return res.json({ liked: true, likes: news.likes });
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid News ID format." });
         }
+        const news = await News.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { likes: 1 } },
+            { new: true }
+        );
+        if (!news) return res.status(404).json({ message: "News not found" });
+        res.json({ likes: news.likes });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 🔹 SHARE NEWS
+// 🔹 SHARE NEWS (Public Counter)
 router.post("/:id/share", async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid News ID format." });
+        }
         const news = await News.findByIdAndUpdate(
             req.params.id,
             { $inc: { shares: 1 } },
             { new: true }
         );
+        if (!news) return res.status(404).json({ message: "News not found" });
         res.json({ shares: news.shares });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 🔹 SAVE NEWS (Bookmark)
-router.post("/:id/save", protect, async (req, res) => {
+// 🔹 SAVE NEWS (Public Counter)
+router.post("/:id/save", async (req, res) => {
     try {
-        await User.findByIdAndUpdate(
-            req.userId,
-            { $addToSet: { savedNews: req.params.id } }
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid News ID format." });
+        }
+        const news = await News.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { savedCount: 1 } },
+            { new: true }
         );
-        res.json({ message: "Saved" });
+        if (!news) return res.status(404).json({ message: "News not found" });
+        res.json({ savedCount: news.savedCount });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 export default router;

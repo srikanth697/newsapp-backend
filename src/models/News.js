@@ -14,6 +14,7 @@ const NewsSchema = new mongoose.Schema({
 
     likes: { type: Number, default: 0 },
     shares: { type: Number, default: 0 },
+    savedCount: { type: Number, default: 0 },
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
 
