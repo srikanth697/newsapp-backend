@@ -153,6 +153,14 @@ router.post("/submit", protect, async (req, res) => {
             return res.status(400).json({ error: "Title and Description are required" });
         }
 
+        // 🚫 Check for existing pending post
+        const existingPending = await News.findOne({ author: req.userId, status: "pending" });
+        if (existingPending) {
+            return res.status(400).json({
+                error: "You have a pending post waiting for approval. Please wait for the admin to review it before posting again."
+            });
+        }
+
         // 📁 Validate Category
         const finalCategory = VALID_CATEGORIES.includes(category) ? category : "general";
 
