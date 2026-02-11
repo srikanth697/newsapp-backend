@@ -28,6 +28,18 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "News"
         }],
+        location: {
+            type: String,
+            default: ""
+        },
+        readsCount: {
+            type: Number,
+            default: 0
+        },
+        postsCount: {
+            type: Number,
+            default: 0
+        }
     },
     { timestamps: true }
 );

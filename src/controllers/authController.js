@@ -186,3 +186,55 @@ export const resetPassword = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/* =========================
+   GET PROFILE
+========================= */
+export const getProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select("-password");
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.json({ success: true, user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/* =========================
+   UPDATE PROFILE
+========================= */
+export const updateProfile = async (req, res) => {
+    try {
+        const { fullName, phone, location } = req.body;
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (fullName) user.fullName = fullName;
+        if (phone) user.phone = phone;
+        if (location) user.location = location;
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: "Profile updated successfully",
+            user: {
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone,
+                location: user.location,
+                readsCount: user.readsCount,
+                postsCount: user.postsCount,
+                createdAt: user.createdAt
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
