@@ -20,7 +20,7 @@ router.post("/reset-password", resetPassword);
 
 // User Profile
 router.get("/profile", protect, getProfile);
-router.post("/profile/update", protect, updateProfile);
+router.post("/update", protect, updateProfile);
 
 
 export default router;
