@@ -17,8 +17,8 @@ app.use(cors());
 
 app.use(express.json());
 
-app.use("/api", languageRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api", languageRoutes);
 
 // 🔹 Manual News Fetch Route
 app.get("/fetch-news", async (req, res) => {
