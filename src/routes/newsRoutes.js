@@ -9,10 +9,11 @@ const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "
 const router = express.Router();
 
 // 🔹 GET ALL NEWS WITH FILTERS (Category, Country, Search)
-// Example: /news?country=IN or /news?category=sports or /news?q=cricket
+// By default shows TODAY's news only
+// Use ?all=true to see all news, or ?yesterday=true for yesterday's news
 router.get("/", async (req, res) => {
     try {
-        const { category, country, q, yesterday, ids } = req.query;
+        const { category, country, q, yesterday, all, ids } = req.query;
 
         const filter = { status: "approved" };
 
@@ -24,14 +25,21 @@ router.get("/", async (req, res) => {
         if (category) filter.category = category;
         if (country) filter.country = country;
 
-        // 🕓 YESTERDAY LOGIC
+        // 📅 DATE FILTERING LOGIC
         if (yesterday === "true") {
+            // Show yesterday's news (last 24 hours)
             const d = new Date();
             d.setDate(d.getDate() - 1);
             filter.publishedAt = { $gte: d };
+        } else if (all !== "true") {
+            // DEFAULT: Show only TODAY's news
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            filter.publishedAt = { $gte: startOfToday };
         }
+        // If all=true, no date filter is applied (shows all news)
 
-        // 🔍 SEARCH LOGIC (Option 4)
+        // 🔍 SEARCH LOGIC
         if (q) {
             filter.$or = [
                 { title: { $regex: q, $options: "i" } },
