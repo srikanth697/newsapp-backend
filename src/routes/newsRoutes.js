@@ -147,31 +147,19 @@ router.post("/ai-fix", protect, async (req, res) => {
 // 🔹 SUBMIT NEWS (User Posting)
 router.post("/submit", protect, async (req, res) => {
     try {
-        const { title, description, image, sourceUrl, category, country, useAI } = req.body;
+        const { title, description, image, sourceUrl, category, country } = req.body;
 
         if (!title || !description) {
             return res.status(400).json({ error: "Title and Description are required" });
         }
 
-        let finalTitle = title;
-        let finalDescription = description;
-        let aiApplied = false;
-
-        // 🤖 Step 1: Run AI Content Correction ONLY if useAI is true
-        if (useAI === true) {
-            const corrected = await correctNewsContent(title, description);
-            finalTitle = corrected.title;
-            finalDescription = corrected.description;
-            aiApplied = true;
-        }
-
-        // 📁 Step 2: Validate Category
+        // 📁 Validate Category
         const finalCategory = VALID_CATEGORIES.includes(category) ? category : "general";
 
         const news = await News.create({
-            title: finalTitle,
-            description: finalDescription,
-            image,
+            title,
+            description,
+            image, // Expecting URL from frontend
             sourceUrl,
             category: finalCategory,
             country: country || "GLOBAL",
@@ -185,16 +173,14 @@ router.post("/submit", protect, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: aiApplied
-                ? "News submitted! Our AI has polished your content."
-                : "News submitted and pending approval.",
-            aiCorrected: aiApplied,
+            message: "News submitted successfully and is pending approval.",
             news
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 
