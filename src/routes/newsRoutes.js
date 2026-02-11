@@ -9,9 +9,15 @@ const router = express.Router();
 // Example: /news?country=IN or /news?category=sports or /news?q=cricket
 router.get("/", async (req, res) => {
     try {
-        const { category, country, q, yesterday } = req.query;
+        const { category, country, q, yesterday, ids } = req.query;
 
-        const filter = {};
+        const filter = { status: "approved" };
+
+        // 🆔 BATCH FETCH LOGIC
+        if (ids) {
+            const idArray = ids.split(",");
+            filter._id = { $in: idArray };
+        }
         if (category) filter.category = category;
         if (country) filter.country = country;
 
@@ -115,5 +121,97 @@ router.post("/:id/save", async (req, res) => {
     }
 });
 
+
+// 🔹 SUBMIT NEWS (User Posting)
+router.post("/submit", protect, async (req, res) => {
+    try {
+        const { title, description, image, sourceUrl, category, country } = req.body;
+
+        const news = await News.create({
+            title,
+            description,
+            image,
+            sourceUrl,
+            category: category || "general",
+            country: country || "GLOBAL",
+            author: req.userId,
+            status: "pending", // Always pending when user posts
+            isUserPost: true
+        });
+
+        // Increment user's post count
+        await User.findByIdAndUpdate(req.userId, { $inc: { postsCount: 1 } });
+
+        res.status(201).json({
+            success: true,
+            message: "News submitted and pending approval",
+            news
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🔹 GET MY POSTS (Check Status)
+router.get("/my-posts", protect, async (req, res) => {
+    try {
+        const posts = await News.find({ author: req.userId }).sort({ publishedAt: -1 });
+        res.json(posts);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* =========================
+   ADMIN PANEL APIS
+========================= */
+
+// 🔹 GET PENDING NEWS (Admin Only)
+router.get("/admin/pending", protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user.isAdmin) return res.status(403).json({ message: "Admin access denied" });
+
+        const pending = await News.find({ status: "pending" }).populate("author", "fullName email");
+        res.json(pending);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🔹 APPROVE NEWS (Admin Only)
+router.post("/admin/approve/:id", protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user.isAdmin) return res.status(403).json({ message: "Admin access denied" });
+
+        const news = await News.findByIdAndUpdate(
+            req.params.id,
+            { status: "approved" },
+            { new: true }
+        );
+        res.json({ message: "News approved and live", news });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🔹 REJECT NEWS (Admin Only)
+router.post("/admin/reject/:id", protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user.isAdmin) return res.status(403).json({ message: "Admin access denied" });
+
+        const { reason } = req.body;
+        const news = await News.findByIdAndUpdate(
+            req.params.id,
+            { status: "rejected", rejectionReason: reason },
+            { new: true }
+        );
+        res.json({ message: "News rejected", news });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 export default router;

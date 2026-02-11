@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        isAdmin: {
+            type: Boolean,
+            default: false
+        },
         darkMode: {
             type: Boolean,
             default: false
