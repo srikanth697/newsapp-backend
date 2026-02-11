@@ -2,6 +2,9 @@ import express from "express";
 import News from "../models/News.js";
 import User from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { correctNewsContent } from "../services/aiService.js";
+
+const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs"];
 
 const router = express.Router();
 
@@ -122,17 +125,27 @@ router.post("/:id/save", async (req, res) => {
 });
 
 
-// 🔹 SUBMIT NEWS (User Posting)
+// 🔹 SUBMIT NEWS (User Posting with AI Correction)
 router.post("/submit", protect, async (req, res) => {
     try {
         const { title, description, image, sourceUrl, category, country } = req.body;
 
+        if (!title || !description) {
+            return res.status(400).json({ error: "Title and Description are required" });
+        }
+
+        // 🤖 Step 1: Run AI Content Correction
+        const corrected = await correctNewsContent(title, description);
+
+        // 📁 Step 2: Validate Category
+        const finalCategory = VALID_CATEGORIES.includes(category) ? category : "general";
+
         const news = await News.create({
-            title,
-            description,
+            title: corrected.title,
+            description: corrected.description,
             image,
             sourceUrl,
-            category: category || "general",
+            category: finalCategory,
             country: country || "GLOBAL",
             author: req.userId,
             status: "pending", // Always pending when user posts
@@ -144,13 +157,15 @@ router.post("/submit", protect, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "News submitted and pending approval",
+            message: "News submitted! Our AI has polished your content for professional look.",
+            aiCorrected: true,
             news
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // 🔹 GET MY POSTS (Check Status)
 router.get("/my-posts", protect, async (req, res) => {
