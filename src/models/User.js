@@ -59,6 +59,17 @@ const userSchema = new mongoose.Schema(
         avatar: {
             type: String,
             default: "" // URL to image
+        },
+        notificationPreferences: {
+            allNotifications: { type: Boolean, default: true },
+            breakingNews: { type: Boolean, default: true },
+            trendingNews: { type: Boolean, default: false },
+            quizReminders: { type: Boolean, default: true },
+            postUpdates: { type: Boolean, default: true }
+        },
+        quietHours: {
+            from: { type: String, default: "10:00 PM" },
+            to: { type: String, default: "7:00 AM" }
         }
     },
     { timestamps: true }

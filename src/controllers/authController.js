@@ -239,11 +239,11 @@ export const updateProfile = async (req, res) => {
 };
 
 /* =========================
-   UPDATE SETTINGS (Dark Mode / Language)
+   UPDATE SETTINGS (Dark Mode / Language / Notifications)
 ========================= */
 export const updateSettings = async (req, res) => {
     try {
-        const { darkMode, language } = req.body;
+        const { darkMode, language, notificationPreferences, quietHours } = req.body;
         const user = await User.findById(req.userId);
 
         if (!user) {
@@ -253,6 +253,21 @@ export const updateSettings = async (req, res) => {
         if (typeof darkMode !== 'undefined') user.darkMode = darkMode;
         if (language) user.language = language;
 
+        // Update Notification Preferences
+        if (notificationPreferences) {
+            if (typeof notificationPreferences.allNotifications !== 'undefined') user.notificationPreferences.allNotifications = notificationPreferences.allNotifications;
+            if (typeof notificationPreferences.breakingNews !== 'undefined') user.notificationPreferences.breakingNews = notificationPreferences.breakingNews;
+            if (typeof notificationPreferences.trendingNews !== 'undefined') user.notificationPreferences.trendingNews = notificationPreferences.trendingNews;
+            if (typeof notificationPreferences.quizReminders !== 'undefined') user.notificationPreferences.quizReminders = notificationPreferences.quizReminders;
+            if (typeof notificationPreferences.postUpdates !== 'undefined') user.notificationPreferences.postUpdates = notificationPreferences.postUpdates;
+        }
+
+        // Update Quiet Hours
+        if (quietHours) {
+            if (quietHours.from) user.quietHours.from = quietHours.from;
+            if (quietHours.to) user.quietHours.to = quietHours.to;
+        }
+
         await user.save();
 
         res.json({
@@ -260,7 +275,9 @@ export const updateSettings = async (req, res) => {
             message: "Settings updated",
             settings: {
                 darkMode: user.darkMode,
-                language: user.language
+                language: user.language,
+                notificationPreferences: user.notificationPreferences,
+                quietHours: user.quietHours
             }
         });
     } catch (error) {
