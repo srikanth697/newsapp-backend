@@ -3,6 +3,7 @@ import cors from "cors";
 import languageRoutes from "./routes/languageRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import newsRoutes from "./routes/newsRoutes.js";
+import quizRoutes from "./routes/quizRoutes.js";
 
 import {
     fetchIndiaNews,
@@ -38,6 +39,7 @@ app.get("/fetch-news", async (req, res) => {
 
 // 🔹 News APIs
 app.use("/news", newsRoutes);
+app.use("/quiz", quizRoutes);
 
 export default app;
 
