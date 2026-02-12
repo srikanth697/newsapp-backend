@@ -36,5 +36,6 @@ build/
 dns_result.txt
 test-dns.js
 
-# Uploads
-uploads/
+# Uploads (keep directory, ignore contents)
+uploads/*
+!uploads/.gitkeep
