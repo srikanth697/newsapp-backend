@@ -35,3 +35,6 @@ build/
 *.tmp
 dns_result.txt
 test-dns.js
+
+# Uploads
+uploads/
