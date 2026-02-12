@@ -1,0 +1,47 @@
+[
+    {
+        "title": "India Wins Cricket World Cup 2026",
+        "description": "India defeated Australia in a thrilling final match to win the Cricket World Cup 2026.",
+        "content": "In a historic victory, Team India clinched the Cricket World Cup 2026 by defeating Australia in the final match held at the Wankhede Stadium in Mumbai.",
+        "image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800",
+        "sourceUrl": "https://example.com/cricket-news",
+        "category": "sports",
+        "country": "IN"
+    },
+    {
+        "title": "New Technology Breakthrough in AI",
+        "description": "Scientists announce major breakthrough in artificial intelligence research.",
+        "content": "Researchers at IIT Bombay have developed a new AI algorithm that can process data 10 times faster than current models.",
+        "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800",
+        "sourceUrl": "https://example.com/tech-news",
+        "category": "tech",
+        "country": "GLOBAL"
+    },
+    {
+        "title": "Stock Market Reaches All-Time High",
+        "description": "Indian stock market hits record high as investors show confidence.",
+        "content": "The BSE Sensex crossed 80,000 points for the first time in history, driven by strong corporate earnings.",
+        "image": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800",
+        "sourceUrl": "https://example.com/business-news",
+        "category": "business",
+        "country": "IN"
+    },
+    {
+        "title": "New Health Guidelines Released",
+        "description": "WHO releases updated health guidelines for 2026.",
+        "content": "The World Health Organization has released new health guidelines focusing on preventive care and mental health.",
+        "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800",
+        "sourceUrl": "https://example.com/health-news",
+        "category": "health",
+        "country": "GLOBAL"
+    },
+    {
+        "title": "Election Results Announced",
+        "description": "Major political party wins state elections with clear majority.",
+        "content": "The ruling party has secured a decisive victory in the state elections, winning 150 out of 200 seats.",
+        "image": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800",
+        "sourceUrl": "https://example.com/politics-news",
+        "category": "politics",
+        "country": "IN"
+    }
+]
