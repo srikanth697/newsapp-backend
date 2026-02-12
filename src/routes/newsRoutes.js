@@ -175,6 +175,7 @@ router.post("/submit", protect, async (req, res) => {
         const news = await News.create({
             title,
             description,
+            content: description, // Save full matter in content field too
             image, // Expecting URL from frontend
             sourceUrl,
             category: finalCategory,

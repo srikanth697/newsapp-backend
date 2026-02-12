@@ -6,7 +6,9 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const uploadDir = "uploads/";
+// Ensure path is absolute from the project root
+const uploadDir = path.join(process.cwd(), "uploads");
+
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -35,6 +37,22 @@ const fileFilter = (req, file, cb) => {
 
 export const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 10 * 1024 * 1024 }, // Increased to 10MB
     fileFilter: fileFilter,
 });
+
+// Helper to handle Multer specific errors
+export const handleMulterError = (err, res) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ success: false, error: "File too large. Max limit is 10MB." });
+        }
+        return res.status(400).json({ success: false, error: err.message, code: err.code });
+    } else if (err) {
+        return res.status(500).json({
+            success: false,
+            error: err.message,
+            stack: err.stack
+        });
+    }
+};

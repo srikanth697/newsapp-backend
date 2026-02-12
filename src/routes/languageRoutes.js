@@ -3,6 +3,6 @@ import { getLanguage } from "../controllers/languageController.js";
 
 const router = express.Router();
 
-router.post("/language", getLanguage);
+router.get("/language", getLanguage);
 
 export default router;

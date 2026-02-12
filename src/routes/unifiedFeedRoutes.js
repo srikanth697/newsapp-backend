@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
             title: item.title,
             description: item.description,
             summary: item.description, // Add summary field
-            content: item.content,
+            content: item.content || item.description, // Fallback if content not set
             image: item.image,
             url: item.sourceUrl,
             sourceUrl: item.sourceUrl,

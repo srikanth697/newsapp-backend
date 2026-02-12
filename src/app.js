@@ -13,12 +13,13 @@ app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
+// Routes
 app.use("/api/auth", authRoutes);
-app.use("/api", languageRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/news", newsRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/unified", unifiedFeedRoutes);
+app.use("/api", languageRoutes); // Mount at /api so /api/language works
+app.use("/news", newsRoutes);
 
 export default app;
 
