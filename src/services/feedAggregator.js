@@ -75,15 +75,26 @@ export const aggregateFeed = async () => {
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
+        // 6️⃣ 🔥 OPTIONAL (PRODUCTION IMPROVEMENT): Delete old news automatically (keep DB light)
+        console.log("🧹 Cleaning up old news (older than 7 days)...");
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deleted = await FeedNews.deleteMany({
+            publishedAt: { $lt: sevenDaysAgo },
+        });
+
         console.log(`\n✅ Feed aggregation complete in ${duration}s`);
         console.log(`   💾 Saved: ${savedCount} new articles`);
         console.log(`   ⏭️  Skipped: ${skippedCount} duplicates`);
+        if (deleted.deletedCount > 0) {
+            console.log(`   🧹 Deleted: ${deleted.deletedCount} old articles`);
+        }
         console.log(`   📦 Total in DB: ${await FeedNews.countDocuments()}\n`);
 
         return {
             success: true,
             saved: savedCount,
             skipped: skippedCount,
+            deleted: deleted.deletedCount,
             duration,
         };
     } catch (error) {
