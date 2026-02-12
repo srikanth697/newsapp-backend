@@ -31,8 +31,8 @@ router.get("/", async (req, res) => {
             const d = new Date();
             d.setDate(d.getDate() - 1);
             filter.publishedAt = { $gte: d };
-        } else if (all !== "true") {
-            // DEFAULT: Show only TODAY's news
+        } else if (all === "today") {
+            // Only show TODAY's news if explicitly requested
             const startOfToday = new Date();
             startOfToday.setHours(0, 0, 0, 0);
             filter.publishedAt = { $gte: startOfToday };

@@ -14,7 +14,7 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/languages", languageRoutes);
+app.use("/api", languageRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/news", newsRoutes);
 app.use("/api/feed", feedRoutes);
