@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
         if (source) query.source = source;
 
         const news = await FeedNews.find(query)
-            .sort({ publishedAt: -1 })
+            .sort({ score: -1, publishedAt: -1 })
             .limit(parseInt(limit));
 
         res.json({

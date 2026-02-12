@@ -21,11 +21,13 @@ const feedSchema = new mongoose.Schema(
         shares: { type: Number, default: 0 },
         savedCount: { type: Number, default: 0 },
         likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        score: { type: Number, default: 0 },
     },
     { timestamps: true }
 );
 
 // Index for faster queries
+feedSchema.index({ score: -1 });
 feedSchema.index({ publishedAt: -1 });
 feedSchema.index({ category: 1 });
 

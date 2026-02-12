@@ -63,6 +63,7 @@ router.get("/", async (req, res) => {
             savedCount: item.savedCount || 0,
             isUserPost: item.isUserPost || false,
             author: item.author,
+            score: 0, // Old news doesn't have smart score yet
         }));
 
         const normalizedFeedNews = feedNews.map((item) => ({
@@ -83,6 +84,7 @@ router.get("/", async (req, res) => {
             savedCount: item.savedCount || 0,
             isUserPost: false,
             author: null,
+            score: item.score || 0,
         }));
 
         // Merge and deduplicate by URL
@@ -100,9 +102,16 @@ router.get("/", async (req, res) => {
             }
         });
 
-        // Convert back to array and sort by date
+        // Convert back to array and sort by score, then date
         let unified = Object.values(uniqueByUrl);
-        unified.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        unified.sort((a, b) => {
+            // Primarily sort by score
+            if (b.score !== a.score) {
+                return b.score - a.score;
+            }
+            // Secondarily sort by date
+            return new Date(b.publishedAt) - new Date(a.publishedAt);
+        });
 
         // Apply limit
         unified = unified.slice(0, parseInt(limit));

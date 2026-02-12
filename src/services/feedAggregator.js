@@ -2,20 +2,21 @@ import FeedNews from "../models/FeedNews.js";
 import { fetchRSS } from "./rssService.js";
 import { fetchAPINews } from "./apiService.js";
 import { deduplicateArticles } from "../utils/deduplicate.js";
+import { rankArticles } from "../utils/ranking.js";
 
 /**
- * 🔥 MAIN AGGREGATION PIPELINE
+ * 🔥 MAIN AGGREGATION PIPELINE (Level 2)
  * 
  * Flow:
  * 1. Fetch from RSS feeds
  * 2. Fetch from API sources
  * 3. Merge all articles
  * 4. Deduplicate (URL + Title similarity)
- * 5. Sort by publish date
- * 6. Save to MongoDB (skip existing URLs)
+ * 5. Rank smartly (Freshness + Importance)
+ * 6. Save to MongoDB (with Score)
  */
 export const aggregateFeed = async () => {
-    console.log("\n🚀 Starting feed aggregation...");
+    console.log("\n🚀 Starting Professional Feed Aggregation (Level 2)...");
     const startTime = Date.now();
 
     try {
@@ -34,16 +35,20 @@ export const aggregateFeed = async () => {
         console.log(`\n🔗 Merged: ${merged.length} total articles`);
 
         // 3️⃣ Deduplicate
-        const clean = deduplicateArticles(merged);
+        const unique = deduplicateArticles(merged);
+        console.log(`\n🛡️  Cleaned: ${unique.length} unique articles`);
 
-        // 4️⃣ Sort by newest first
-        clean.sort((a, b) => b.publishedAt - a.publishedAt);
+        // 4️⃣ Rank smartly (Freshness + Importance)
+        const ranked = rankArticles(unique);
 
-        // 5️⃣ Save to database (skip duplicates)
+        // 5️⃣ Sort by Score (highest first)
+        ranked.sort((a, b) => b.score - a.score);
+
+        // 6️⃣ Save to database
         let savedCount = 0;
         let skippedCount = 0;
 
-        for (const article of clean) {
+        for (const article of ranked) {
             try {
                 // Check if URL already exists
                 const exists = await FeedNews.findOne({ url: article.url });
@@ -58,13 +63,13 @@ export const aggregateFeed = async () => {
                         source: article.source,
                         category: article.category,
                         publishedAt: article.publishedAt,
+                        score: article.score, // Save the smart score
                     });
                     savedCount++;
                 } else {
                     skippedCount++;
                 }
             } catch (error) {
-                // Skip if duplicate URL (unique constraint violation)
                 if (error.code === 11000) {
                     skippedCount++;
                 } else {
