@@ -1,6 +1,9 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client();
 
 /* =========================
    SIGNUP
@@ -165,10 +168,10 @@ export const googleLogin = async (req, res) => {
         });
     } catch (error) {
         console.error("❌ Google Login Error:", error.message);
-        res.status(401).json({ 
-            success: false, 
+        res.status(401).json({
+            success: false,
             message: "Google authentication failed",
-            details: error.message 
+            details: error.message
         });
     }
 };
