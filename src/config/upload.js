@@ -1,24 +1,28 @@
 import multer from "multer";
 
 /**
- * 📦 MULTER CONFIG (PRODUCTION VERSION)
- * Uses memoryStorage for Base64 conversion
- * This allows req.file.buffer to be accessible in controllers
+ * 📦 MULTER CONFIG (PRODUCTION VERSION - EXTENSION BASED)
+ * Uses memoryStorage for Base64 conversion.
+ * Validates based on file extension to fix Flutter mimetype issues.
  */
 const storage = multer.memoryStorage();
 
 const upload = multer({
-    storage: storage,
+    storage,
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-        if (allowedTypes.includes(file.mimetype)) {
+        console.log("Incoming file for validation:");
+        console.log("Original Name:", file.originalname);
+        console.log("Mime Type received:", file.mimetype);
+
+        // Accept based on extension (Fixes application/octet-stream issues from mobile)
+        if (/\.(jpg|jpeg|png|webp)$/i.test(file.originalname)) {
             cb(null, true);
         } else {
             cb(new Error("Only image files are allowed"), false);
         }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fileSize: 5 * 1024 * 1024, // 5MB limit
     },
 });
 

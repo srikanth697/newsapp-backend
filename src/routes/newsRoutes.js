@@ -6,7 +6,7 @@ import { correctNewsContent } from "../services/aiService.js";
 import upload from "../config/upload.js";
 import { createNews } from "../controllers/newsController.js";
 
-const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs"];
+const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs", "india", "international"];
 
 const router = express.Router();
 

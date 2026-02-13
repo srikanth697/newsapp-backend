@@ -10,7 +10,7 @@ const languagesPath = path.join(__dirname, "../data/languages.json");
 const languages = JSON.parse(fs.readFileSync(languagesPath, "utf-8"));
 
 export const getLanguage = (req, res) => {
-    let { language } = req.body;
+    let language = req.query.code || req.query.language || req.body.language;
 
     // Default to 'en' if not provided or not supported
     if (!language || !languages[language]) {
