@@ -16,6 +16,49 @@ router.post("/create", protect, upload.single("image"), createNews);
 // 🔹 GET MY STATUS (To show Pending Screen in Flutter)
 router.get("/my-status", protect, getMyStatus);
 
+/* =========================
+   TODAY NEWS API
+========================= */
+router.get("/today", async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const news = await News.find({
+            status: "approved",
+            publishedAt: { $gte: today, $lt: tomorrow }
+        }).sort({ publishedAt: -1 });
+
+        res.json(news);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/* =========================
+   PREVIOUS DAYS HEADLINES API
+========================= */
+router.get("/previous", async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const news = await News.find({
+            status: "approved",
+            publishedAt: { $lt: today }
+        })
+            .sort({ publishedAt: -1 })
+            .select("title publishedAt _id");
+
+        res.json(news);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // 🔹 GET ALL NEWS WITH FILTERS (Category, Country, Search)
 router.get("/", async (req, res) => {
     try {

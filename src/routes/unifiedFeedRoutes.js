@@ -27,6 +27,10 @@ router.get("/", async (req, res) => {
             const d = new Date();
             d.setDate(d.getDate() - 1);
             dateFilter = { publishedAt: { $gte: d } };
+        } else if (req.query.month === "true") {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            dateFilter = { publishedAt: { $gte: d } };
         } else if (all === "today") {
             // Only filter by today if explicitly requested
             const startOfToday = new Date();

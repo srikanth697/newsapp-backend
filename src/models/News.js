@@ -25,7 +25,17 @@ const NewsSchema = new mongoose.Schema({
         default: "pending"
     },
     rejectionReason: String,
-    isUserPost: { type: Boolean, default: false }
+    isUserPost: { type: Boolean, default: false },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
 });
+
+// 🔥 Keep only 30 days data
+NewsSchema.index(
+    { createdAt: 1 },
+    { expireAfterSeconds: 60 * 60 * 24 * 30 }
+);
 
 export default mongoose.model("News", NewsSchema);
