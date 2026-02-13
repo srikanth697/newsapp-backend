@@ -9,6 +9,17 @@ export const createNews = async (req, res) => {
     try {
         const { title, content, category } = req.body;
 
+        // 🚫 Check for existing pending post
+        const existingPending = await News.findOne({ author: req.userId, status: "pending" });
+        if (existingPending) {
+            return res.status(400).json({
+                success: false,
+                code: "ALREADY_HAS_PENDING",
+                message: "You have a pending post waiting for approval.",
+                news: existingPending
+            });
+        }
+
         if (!req.file) {
             return res.status(400).json({ success: false, message: "Image required" });
         }
@@ -42,5 +53,23 @@ export const createNews = async (req, res) => {
             success: false,
             error: error.message,
         });
+    }
+};
+
+/**
+ * 🛰️ GET PENDING STATUS
+ * Checks if user has a pending post to show the "Pending Screen" in Flutter
+ */
+export const getPendingStatus = async (req, res) => {
+    try {
+        const pending = await News.findOne({ author: req.userId, status: "pending" });
+
+        res.json({
+            success: true,
+            hasPending: !!pending,
+            news: pending || null
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 };
