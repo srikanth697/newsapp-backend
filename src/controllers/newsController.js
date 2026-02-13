@@ -7,7 +7,7 @@ import User from "../models/User.js";
  */
 export const createNews = async (req, res) => {
     try {
-        const { title, content, category, language } = req.body;
+        const { title, content, category } = req.body;
 
         if (!req.file) {
             return res.status(400).json({ success: false, message: "Image required" });
@@ -21,7 +21,6 @@ export const createNews = async (req, res) => {
             description: content,
             content,
             category,
-            language,
             image: imageBase64,
             author: req.userId,
             status: "pending",

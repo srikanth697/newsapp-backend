@@ -4,63 +4,14 @@ import User from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { correctNewsContent } from "../services/aiService.js";
 import upload from "../config/upload.js";
+import { createNews } from "../controllers/newsController.js";
 
 const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs"];
 
 const router = express.Router();
 
-// 🔹 CREATE NEWS (Multipart - One Step)
-router.post("/create", protect, upload.single("image"), async (req, res) => {
-    try {
-        const { title, content, category, language } = req.body;
-
-        if (!title || !content) {
-            return res.status(400).json({ success: false, message: "Title and Content are required" });
-        }
-
-        // 📁 Check for existing pending post
-        const existingPending = await News.findOne({ author: req.userId, status: "pending" });
-        if (existingPending) {
-            return res.status(400).json({
-                success: false,
-                message: "You have a pending post waiting for approval."
-            });
-        }
-
-        let imageUrl = "";
-        if (req.file) {
-            const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-            const host = req.get("host");
-            imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-        }
-
-        const finalCategory = VALID_CATEGORIES.includes(category) ? category : "general";
-
-        const news = await News.create({
-            title,
-            description: content,
-            content: content,
-            image: imageUrl,
-            category: finalCategory,
-            country: language?.toUpperCase() || "GLOBAL",
-            author: req.userId,
-            status: "pending",
-            isUserPost: true
-        });
-
-        // Increment user's post count
-        await User.findByIdAndUpdate(req.userId, { $inc: { postsCount: 1 } });
-
-        res.status(201).json({
-            success: true,
-            message: "News posted successfully and pending approval",
-            news
-        });
-    } catch (err) {
-        console.error("❌ Catch block error:", err);
-        res.status(500).json({ success: false, message: "Internal Server Error", error: err.message });
-    }
-});
+// 🔹 CREATE NEWS (Professional with Image Upload)
+router.post("/create", protect, upload.single("image"), createNews);
 
 // 🔹 GET ALL NEWS WITH FILTERS (Category, Country, Search)
 router.get("/", async (req, res) => {
