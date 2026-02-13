@@ -22,7 +22,7 @@ const NewsSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ["pending", "approved", "rejected"],
-        default: "approved" // Scraped news is auto-approved
+        default: "pending"
     },
     rejectionReason: String,
     isUserPost: { type: Boolean, default: false }

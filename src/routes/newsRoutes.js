@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { correctNewsContent } from "../services/aiService.js";
 import upload from "../config/upload.js";
-import { createNews, getPendingStatus } from "../controllers/newsController.js";
+import { createNews, getMyStatus } from "../controllers/newsController.js";
 
 const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs", "india", "international"];
 
@@ -13,8 +13,8 @@ const router = express.Router();
 // 🔹 CREATE NEWS (Professional with Image Upload)
 router.post("/create", protect, upload.single("image"), createNews);
 
-// 🔹 GET PENDING STATUS (To show Pending Screen in Flutter)
-router.get("/pending-status", protect, getPendingStatus);
+// 🔹 GET MY STATUS (To show Pending Screen in Flutter)
+router.get("/my-status", protect, getMyStatus);
 
 // 🔹 GET ALL NEWS WITH FILTERS (Category, Country, Search)
 router.get("/", async (req, res) => {
