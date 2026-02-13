@@ -9,8 +9,10 @@ const __dirname = path.dirname(__filename);
 // Ensure path is absolute from the project root
 const uploadDir = path.join(process.cwd(), "uploads");
 
+console.log("📂 Upload directory set to:", uploadDir);
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
+    console.log("📁 Created uploads directory");
 }
 
 const storage = multer.diskStorage({

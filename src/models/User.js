@@ -17,7 +17,14 @@ const userSchema = new mongoose.Schema(
         },
         password: {
             type: String,
-            required: true,
+            required: function () {
+                return !this.googleId; // Password only required for normal signup
+            },
+        },
+        googleId: {
+            type: String,
+            unique: true,
+            sparse: true, // Allows multiple nulls for non-social users
         },
 
         // Forgot password

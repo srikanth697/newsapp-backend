@@ -8,6 +8,7 @@ import languageRoutes from "./routes/languageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
@@ -18,8 +19,19 @@ app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/unified", unifiedFeedRoutes);
-app.use("/api", languageRoutes); // Mount at /api so /api/language works
+app.use("/api/language", languageRoutes); // Fixed path
 app.use("/news", newsRoutes);
+app.get("/", (req, res) => res.send("News API is running..."));
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error("Global Error Handler:", err);
+    res.status(err.status || 500).json({
+        success: false,
+        error: err.message || "Internal Server Error",
+        stack: process.env.NODE_ENV === "production" ? null : err.stack,
+    });
+});
 
 export default app;
 

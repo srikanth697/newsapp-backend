@@ -95,6 +95,85 @@ export const login = async (req, res) => {
 };
 
 /* =========================
+   GOOGLE LOGIN (PRODUCTION READY)
+========================= */
+export const googleLogin = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({ success: false, message: "Google ID Token is required" });
+        }
+
+        // 1. Verify the ID Token with Google
+        const ticket = await client.verifyIdToken({
+            idToken: idToken,
+            audience: [
+                process.env.GOOGLE_CLIENT_ID_ANDROID,
+                process.env.GOOGLE_CLIENT_ID_IOS,
+                process.env.GOOGLE_CLIENT_ID_WEB // Optional
+            ].filter(Boolean) // Remove undefined ones
+        });
+
+        const payload = ticket.getPayload();
+        const { email, name, picture, sub: uid } = payload;
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: "Email not provided by Google" });
+        }
+
+        // 2. Check if user exists
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // 3. Create new user if they don't exist
+            user = await User.create({
+                fullName: name || "Google User",
+                email: email,
+                isVerified: true, // Google already verified this email
+                avatar: picture || "",
+                googleId: uid
+            });
+            console.log(`🆕 New Google User created: ${email}`);
+        } else {
+            // Update Google ID if not present
+            if (!user.googleId) {
+                user.googleId = uid;
+                await user.save();
+            }
+            console.log(`✅ Existing user logged in via Google: ${email}`);
+        }
+
+        // 4. Generate local JWT Token
+        const token = jwt.sign(
+            { userId: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.json({
+            success: true,
+            code: "GOOGLE_LOGIN_SUCCESS",
+            message: "Login successful with Google",
+            token,
+            user: {
+                id: user._id,
+                name: user.fullName,
+                email: user.email,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        console.error("❌ Google Login Error:", error.message);
+        res.status(401).json({ 
+            success: false, 
+            message: "Google authentication failed",
+            details: error.message 
+        });
+    }
+};
+
+/* =========================
    FORGOT PASSWORD (SEND OTP)
 ========================= */
 export const forgotPassword = async (req, res) => {
