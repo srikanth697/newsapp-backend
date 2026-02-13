@@ -20,7 +20,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/unified", unifiedFeedRoutes);
 app.use("/api/language", languageRoutes); // Fixed path
-app.use("/news", newsRoutes);
+app.use("/api/news", newsRoutes);
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware

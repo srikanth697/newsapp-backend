@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { upload, handleMulterError } from "../config/upload.js";
+import { uploadLocal as upload, handleMulterError } from "../config/upload.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

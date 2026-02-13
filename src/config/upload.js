@@ -1,18 +1,16 @@
 import multer from "multer";
+
+/**
+ * 📦 MULTER CONFIG (PRODUCTION VERSION)
+ * Uses memoryStorage for Base64 conversion
+ */
 import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure path is absolute from the project root
-const uploadDir = path.join(process.cwd(), "uploads");
-
-console.log("📂 Upload directory set to:", uploadDir);
+// Ensure uploads directory exists
+const uploadDir = "uploads";
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log("📁 Created uploads directory");
+    fs.mkdirSync(uploadDir);
 }
 
 const storage = multer.diskStorage({
@@ -21,40 +19,31 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
     },
 });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb(new Error("Only image files are allowed"));
-    }
-};
-
-export const upload = multer({
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // Increased to 10MB
-    fileFilter: fileFilter,
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(null, false);
+            return cb(new Error("Only image files are allowed"));
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
 });
 
-// Helper to handle Multer specific errors
 export const handleMulterError = (err, res) => {
-    if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-            return res.status(400).json({ success: false, error: "File too large. Max limit is 10MB." });
-        }
-        return res.status(400).json({ success: false, error: err.message, code: err.code });
-    } else if (err) {
-        return res.status(500).json({
-            success: false,
-            error: err.message,
-            stack: err.stack
-        });
-    }
+    return res.status(500).json({
+        success: false,
+        error: err.message || "File upload error",
+    });
 };
+
+export default upload;
