@@ -2,133 +2,91 @@ import axios from "axios";
 
 const API_KEY = process.env.NEWS_API_KEY;
 
+const fetchFullCategory = async (params) => {
+    let all = [];
+    const maxPages = 5; // Fetch up to 500 articles per category
+
+    for (let page = 1; page <= maxPages; page++) {
+        try {
+            console.log(`   📡 Page ${page}...`);
+            const res = await axios.get("https://newsapi.org/v2/top-headlines", {
+                params: { ...params, page, pageSize: 100, apiKey: API_KEY }
+            });
+
+            if (!res.data.articles || res.data.articles.length === 0) break;
+
+            all.push(...res.data.articles);
+        } catch (error) {
+            console.error(`   ❌ Error fetching page ${page}:`, error.message);
+            break;
+        }
+    }
+    return all;
+};
+
 /**
- * 🔥 Fetch news from NewsAPI and normalize to standard format
- * This replaces the old newsService functions but with normalized output
+ * 🔥 Fetch news from NewsAPI (Massive Fetch)
  */
 export const fetchAPINews = async () => {
     const allArticles = [];
 
-    // Check if NewsAPI key is available
     if (!API_KEY) {
-        console.log("⚠️  NewsAPI key not found - skipping API sources (RSS feeds will still work)");
+        console.log("⚠️  NewsAPI key not found - skipping API sources");
         return allArticles;
     }
 
+    // 1️⃣ India News (Everything endpoint for volume)
+    console.log("📡 Fetching India news (Massive)...");
     try {
-        // 1️⃣ India News
-        console.log("📡 Fetching India news from API...");
-        const indiaRes = await axios.get("https://newsapi.org/v2/everything", {
-            params: {
-                q: "india",
-                apiKey: API_KEY,
-                pageSize: 20,
-                sortBy: "publishedAt",
-            },
+        const res = await axios.get("https://newsapi.org/v2/everything", {
+            params: { q: "india", apiKey: API_KEY, pageSize: 100, sortBy: "publishedAt" }
         });
+        const articles = res.data.articles || [];
+        allArticles.push(...articles.map(item => normalize(item, "india")));
+        console.log(`✅ Fetched ${articles.length} India articles`);
+    } catch (e) { console.error(e.message); }
 
-        const indiaArticles = indiaRes.data.articles.map((item) => ({
-            title: item.title?.trim(),
-            summary: item.description || "",
-            content: item.content || item.description || "",
-            url: item.url?.trim(),
-            image: item.urlToImage,
-            source: item.source?.name || "NewsAPI",
-            category: "india",
-            publishedAt: new Date(item.publishedAt),
-        }));
+    // 2️⃣ International (US)
+    console.log("📡 Fetching International news...");
+    const intlRaw = await fetchFullCategory({ country: "us" });
+    allArticles.push(...intlRaw.map(item => normalize(item, "international")));
+    console.log(`✅ Fetched ${intlRaw.length} Intl articles`);
 
-        allArticles.push(...indiaArticles);
-        console.log(`✅ Fetched ${indiaArticles.length} India articles`);
-    } catch (error) {
-        console.error("❌ India API Error:", error.message);
-    }
+    // 3️⃣ Technology
+    console.log("📡 Fetching Tech news...");
+    const techRaw = await fetchFullCategory({ category: "technology", language: "en" });
+    allArticles.push(...techRaw.map(item => normalize(item, "tech")));
+    console.log(`✅ Fetched ${techRaw.length} Tech articles`);
 
-    try {
-        // 2️⃣ International News
-        console.log("📡 Fetching international news from API...");
-        const intlRes = await axios.get("https://newsapi.org/v2/top-headlines", {
-            params: {
-                country: "us",
-                apiKey: API_KEY,
-                pageSize: 20,
-            },
-        });
+    // 4️⃣ Health
+    console.log("📡 Fetching Health news...");
+    const healthRaw = await fetchFullCategory({ category: "health", language: "en" });
+    allArticles.push(...healthRaw.map(item => normalize(item, "health")));
+    console.log(`✅ Fetched ${healthRaw.length} Health articles`);
 
-        const intlArticles = intlRes.data.articles.map((item) => ({
-            title: item.title?.trim(),
-            summary: item.description || "",
-            content: item.content || item.description || "",
-            url: item.url?.trim(),
-            image: item.urlToImage,
-            source: item.source?.name || "NewsAPI",
-            category: "international",
-            publishedAt: new Date(item.publishedAt),
-        }));
+    // 5️⃣ Business
+    console.log("📡 Fetching Business news...");
+    const bizRaw = await fetchFullCategory({ category: "business", language: "en" });
+    allArticles.push(...bizRaw.map(item => normalize(item, "business")));
+    console.log(`✅ Fetched ${bizRaw.length} Business articles`);
 
-        allArticles.push(...intlArticles);
-        console.log(`✅ Fetched ${intlArticles.length} international articles`);
-    } catch (error) {
-        console.error("❌ International API Error:", error.message);
-    }
-
-    try {
-        // 3️⃣ Technology News
-        console.log("📡 Fetching tech news from API...");
-        const techRes = await axios.get("https://newsapi.org/v2/top-headlines", {
-            params: {
-                category: "technology",
-                apiKey: API_KEY,
-                language: "en",
-                pageSize: 20,
-            },
-        });
-
-        const techArticles = techRes.data.articles.map((item) => ({
-            title: item.title?.trim(),
-            summary: item.description || "",
-            content: item.content || item.description || "",
-            url: item.url?.trim(),
-            image: item.urlToImage,
-            source: item.source?.name || "NewsAPI",
-            category: "tech",
-            publishedAt: new Date(item.publishedAt),
-        }));
-
-        allArticles.push(...techArticles);
-        console.log(`✅ Fetched ${techArticles.length} tech articles`);
-    } catch (error) {
-        console.error("❌ Tech API Error:", error.message);
-    }
-
-    try {
-        // 4️⃣ Health News
-        console.log("📡 Fetching health news from API...");
-        const healthRes = await axios.get("https://newsapi.org/v2/top-headlines", {
-            params: {
-                category: "health",
-                apiKey: API_KEY,
-                language: "en",
-                pageSize: 20,
-            },
-        });
-
-        const healthArticles = healthRes.data.articles.map((item) => ({
-            title: item.title?.trim(),
-            summary: item.description || "",
-            content: item.content || item.description || "",
-            url: item.url?.trim(),
-            image: item.urlToImage,
-            source: item.source?.name || "NewsAPI",
-            category: "health",
-            publishedAt: new Date(item.publishedAt),
-        }));
-
-        allArticles.push(...healthArticles);
-        console.log(`✅ Fetched ${healthArticles.length} health articles`);
-    } catch (error) {
-        console.error("❌ Health API Error:", error.message);
-    }
+    // 6️⃣ Sports
+    console.log("📡 Fetching Sports news...");
+    const sportsRaw = await fetchFullCategory({ category: "sports", language: "en" });
+    allArticles.push(...sportsRaw.map(item => normalize(item, "sports")));
+    console.log(`✅ Fetched ${sportsRaw.length} Sports articles`);
 
     return allArticles;
 };
+
+// Helper: Normalize
+const normalize = (item, category) => ({
+    title: item.title?.trim(),
+    summary: item.description || "",
+    content: item.content || item.description || "",
+    url: item.url?.trim(),
+    image: item.urlToImage,
+    source: item.source?.name || "NewsAPI",
+    category: category,
+    publishedAt: new Date(item.publishedAt),
+});

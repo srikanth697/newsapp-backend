@@ -113,20 +113,33 @@ import FeedNews from "../models/FeedNews.js";
 
 /**
  * 🌍 GET ALL NEWS (Unified)
- * GET /api/news?lang=en&category=tech
+ * GET /api/news?lang=en&category=tech&q=searchterm
  * Note: Redirects logic to ensure FeedNews + User News are returned.
  */
 export const getAllNews = async (req, res) => {
     try {
-        const { lang = "en", category, ...filters } = req.query;
+        const { lang = "en", category, q, query: searchParams, ...filters } = req.query;
 
         // Detect if this is a "previous" or "today" request based on URL path or query
         const isPrevious = req.path.includes("previous") || req.query.yesterday === "true";
         const isToday = req.path.includes("today") || req.query.all === "true"; // Assuming 'all=true' meant today based on old logic
 
         // Build query
-        const query = {};
-        if (category) query.category = category;
+        const dbQuery = {};
+        if (category) dbQuery.category = category;
+
+        // Search Logic
+        const searchQuery = q || searchParams;
+        if (searchQuery) {
+            const regex = new RegExp(searchQuery, "i");
+            dbQuery.$or = [
+                { "title.en": regex }, // Search in English title
+                { "title": regex },    // Search in legacy string title
+                { "description.en": regex },
+                { "description": regex }, // Legacy string desc
+                { "summary": regex }      // FeedNews summary
+            ];
+        }
 
         // Date Filter Logic
         let dateFilter = {};
@@ -141,9 +154,10 @@ export const getAllNews = async (req, res) => {
         }
 
         // Fetch from BOTH collections
+        // Removed limit(50) to show UNLIMITED news as requested
         const [userNews, feedNews] = await Promise.all([
-            News.find({ ...query, ...dateFilter, status: "approved" }).sort({ publishedAt: -1 }).limit(50),
-            FeedNews.find({ ...query, ...dateFilter }).sort({ publishedAt: -1 }).limit(50)
+            News.find({ ...dbQuery, ...dateFilter, status: "approved" }).sort({ publishedAt: -1 }),
+            FeedNews.find({ ...dbQuery, ...dateFilter }).sort({ publishedAt: -1 })
         ]);
 
         // Merge & Transform
