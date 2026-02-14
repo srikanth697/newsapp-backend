@@ -109,29 +109,53 @@ export const createNews = async (req, res) => {
     }
 };
 
+import FeedNews from "../models/FeedNews.js";
+
 /**
- * 🌍 GET ALL NEWS
+ * 🌍 GET ALL NEWS (Unified)
  * GET /api/news?lang=en&category=tech
+ * Note: Redirects logic to ensure FeedNews + User News are returned.
  */
 export const getAllNews = async (req, res) => {
     try {
         const { lang = "en", category, ...filters } = req.query;
 
-        const query = { status: "approved" };
+        // Detect if this is a "previous" or "today" request based on URL path or query
+        const isPrevious = req.path.includes("previous") || req.query.yesterday === "true";
+        const isToday = req.path.includes("today") || req.query.all === "true"; // Assuming 'all=true' meant today based on old logic
+
+        // Build query
+        const query = {};
         if (category) query.category = category;
 
-        // Add other filters as needed
+        // Date Filter Logic
+        let dateFilter = {};
+        if (isPrevious) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            dateFilter = { publishedAt: { $lt: today } };
+        } else if (isToday) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            dateFilter = { publishedAt: { $gte: today } };
+        }
 
-        const newsList = await News.find(query)
-            .sort({ publishedAt: -1 })
-            .limit(100); // Limit results for performance
+        // Fetch from BOTH collections
+        const [userNews, feedNews] = await Promise.all([
+            News.find({ ...query, ...dateFilter, status: "approved" }).sort({ publishedAt: -1 }).limit(50),
+            FeedNews.find({ ...query, ...dateFilter }).sort({ publishedAt: -1 }).limit(50)
+        ]);
 
-        const data = newsList.map(news => transformNews(news, lang));
+        // Merge & Transform
+        const combined = [...userNews, ...feedNews].map(item => transformNews(item, lang));
+
+        // Sort by Date (newest first)
+        combined.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
         res.json({
             success: true,
-            count: data.length,
-            data
+            count: combined.length,
+            data: combined
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
