@@ -2,66 +2,221 @@ import News from "../models/News.js";
 import User from "../models/User.js";
 
 /**
- * 📰 CREATE NEWS (Professional Version)
- * Handles image upload as Base64
+ * 🛠️ Helper to Transform News for Response
+ * Selects the requested language or falls back to English.
+ */
+const transformNews = (news, lang = "en") => {
+    // Helper to safely get the language value or fallback to 'en'
+    const getField = (field) => {
+        if (!field) return "";
+        // If field is just a string (legacy data), return it
+        if (typeof field === "string") return field;
+
+        // Return requested language, then fallback to English, then first available key
+        return field[lang] || field["en"] || Object.values(field)[0] || "";
+    };
+
+    return {
+        id: news._id,
+        title: getField(news.title),
+        description: getField(news.description),
+        content: getField(news.content),
+        category: news.category,
+        imageUrl: news.imageUrl || news.image, // Support both new imageUrl and old image (base64)
+        source: news.source,
+        sourceUrl: news.sourceUrl,
+        publishedAt: news.publishedAt,
+        createdAt: news.createdAt,
+        updatedAt: news.updatedAt,
+        author: news.author,
+        status: news.status,
+        likes: news.likes,
+        shares: news.shares,
+        savedCount: news.savedCount
+    };
+};
+
+/**
+ * 📰 CREATE NEWS (Multilingual Support)
+ * POST /api/news
  */
 export const createNews = async (req, res) => {
     try {
-        const { title, content, category } = req.body;
+        let { title, description, content, category, country } = req.body;
 
-        // 🚫 Check for existing pending post
-        const existingPending = await News.findOne({ author: req.userId, status: "pending" });
-        if (existingPending) {
-            return res.status(400).json({
-                success: false,
-                message: "You already have a pending news"
-            });
+        // Handle file upload (Base64)
+        let imageUrl = "";
+        if (req.file) {
+            imageUrl = req.file.buffer.toString("base64");
+        } else if (req.body.imageUrl) {
+            imageUrl = req.body.imageUrl;
         }
 
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: "Image required" });
+        // Parse JSON strings if they come from FormData
+        try {
+            if (typeof title === 'string' && (title.startsWith('{') || title.startsWith('['))) title = JSON.parse(title);
+            if (typeof description === 'string' && (description.startsWith('{') || description.startsWith('['))) description = JSON.parse(description);
+            if (typeof content === 'string' && (content.startsWith('{') || content.startsWith('['))) content = JSON.parse(content);
+        } catch (e) {
+            // If parsing fails, assume it's a simple string (English default)
+            title = { en: title };
+            description = { en: description };
+            content = { en: content };
         }
 
-        // Convert buffer to Base64 string
-        const imageBase64 = req.file.buffer.toString("base64");
+        // Validate required fields (English title is mandatory)
+        if (!title || (!title.en && typeof title !== 'string')) {
+            // If title is an object but no 'en' key, check if there are other keys
+            if (typeof title === 'object' && Object.keys(title).length === 0) {
+                return res.status(400).json({ success: false, message: "Title is required (at least in English)" });
+            }
+        }
+
+        // Check for duplicate/pending posts for user
+        if (req.userId) {
+            const existingPending = await News.findOne({ author: req.userId, status: "pending" });
+            if (existingPending) {
+                return res.status(400).json({ success: false, message: "You already have a pending news post." });
+            }
+        }
 
         const news = await News.create({
-            title,
-            description: content,
-            content,
-            category,
-            image: imageBase64,
-            author: req.userId,
-            status: "pending",
-            isUserPost: true
+            title: typeof title === "string" ? { en: title } : title,
+            description: typeof description === "string" ? { en: description } : description,
+            content: typeof content === "string" ? { en: content } : content,
+            category: category || "general",
+            country: country || "IN",
+            imageUrl: imageUrl, // Storing in new field
+            image: imageUrl,    // Backwards compatibility
+            author: req.userId || null,
+            isUserPost: !!req.userId,
+            status: req.userId ? "pending" : "approved" // Admin/System posts are auto-approved
         });
 
-        // Increment user's post count
-        await User.findByIdAndUpdate(req.userId, { $inc: { postsCount: 1 } });
+        if (req.userId) {
+            await User.findByIdAndUpdate(req.userId, { $inc: { postsCount: 1 } });
+        }
 
         res.status(201).json({
             success: true,
-            message: "News created successfully and pending approval",
-            news,
+            message: "News created successfully",
+            data: transformNews(news, "en")
         });
 
     } catch (error) {
-        console.error("Create News Error:", error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-        });
+        console.error("Create News Error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
 /**
- * 🛰️ GET MY STATUS
- * Checks if user has a pending post to show the "Pending Screen" in Flutter
+ * 🌍 GET ALL NEWS
+ * GET /api/news?lang=en&category=tech
+ */
+export const getAllNews = async (req, res) => {
+    try {
+        const { lang = "en", category, ...filters } = req.query;
+
+        const query = { status: "approved" };
+        if (category) query.category = category;
+
+        // Add other filters as needed
+
+        const newsList = await News.find(query)
+            .sort({ publishedAt: -1 })
+            .limit(100); // Limit results for performance
+
+        const data = newsList.map(news => transformNews(news, lang));
+
+        res.json({
+            success: true,
+            count: data.length,
+            data
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🔍 GET SINGLE NEWS
+ * GET /api/news/:id?lang=en
+ */
+export const getSingleNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { lang = "en" } = req.query;
+
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ success: false, message: "Invalid ID format" });
+        }
+
+        const news = await News.findById(id);
+        if (!news) {
+            return res.status(404).json({ success: false, message: "News not found" });
+        }
+
+        res.json({
+            success: true,
+            data: transformNews(news, lang)
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * ✏️ UPDATE NEWS
+ * PUT /api/news/:id
+ */
+export const updateNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const news = await News.findByIdAndUpdate(id, updates, { new: true });
+        if (!news) {
+            return res.status(404).json({ success: false, message: "News not found" });
+        }
+
+        res.json({
+            success: true,
+            message: "News updated successfully",
+            data: transformNews(news, "en")
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🗑️ DELETE NEWS
+ * DELETE /api/news/:id
+ */
+export const deleteNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const news = await News.findByIdAndDelete(id);
+
+        if (!news) {
+            return res.status(404).json({ success: false, message: "News not found" });
+        }
+
+        res.json({
+            success: true,
+            message: "News deleted successfully"
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 👤 GET MY STATUS (Legacy Support)
  */
 export const getMyStatus = async (req, res) => {
     try {
         const pending = await News.findOne({ author: req.userId, status: "pending" });
-
         res.json({
             hasPending: !!pending,
             pendingNewsId: pending?._id || null

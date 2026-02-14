@@ -15,7 +15,14 @@ const router = express.Router();
  */
 router.get("/", async (req, res) => {
     try {
-        const { category, limit = 50, yesterday, all } = req.query;
+        const { category, limit = 50, yesterday, all, lang = "en" } = req.query;
+
+        // Helper to get field based on language
+        const getField = (field) => {
+            if (!field) return "";
+            if (typeof field === "string") return field;
+            return field[lang] || field["en"] || Object.values(field)[0] || "";
+        };
 
         // Build query for both models
         const query = {};
@@ -51,11 +58,11 @@ router.get("/", async (req, res) => {
         // Normalize both to same format
         const normalizedOldNews = oldNews.map((item) => ({
             _id: item._id,
-            title: item.title,
-            description: item.description,
-            summary: item.description, // Add summary field
-            content: item.content || item.description, // Fallback if content not set
-            image: item.image,
+            title: getField(item.title),
+            description: getField(item.description),
+            summary: getField(item.description), // Add summary field
+            content: getField(item.content) || getField(item.description), // Fallback if content not set
+            image: item.imageUrl || item.image, // Support both new imageUrl and old image
             url: item.sourceUrl,
             sourceUrl: item.sourceUrl,
             source: "NewsAPI", // Old news source
@@ -72,7 +79,7 @@ router.get("/", async (req, res) => {
 
         const normalizedFeedNews = feedNews.map((item) => ({
             _id: item._id,
-            title: item.title,
+            title: item.title, // FeedNews might not be multilingual yet, generally assumes one lang
             description: item.summary, // Map summary to description
             summary: item.summary,
             content: item.content,
