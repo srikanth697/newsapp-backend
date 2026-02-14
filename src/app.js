@@ -21,6 +21,14 @@ app.use("/api/feed", feedRoutes);
 app.use("/api/unified", unifiedFeedRoutes);
 app.use("/api/language", languageRoutes); // Fixed path
 app.use("/api/news", newsRoutes);
+
+// Fallback Routes (for clients omitting /api prefix)
+app.use("/auth", authRoutes);
+app.use("/upload", uploadRoutes);
+app.use("/feed", feedRoutes);
+app.use("/unified", unifiedFeedRoutes);
+app.use("/language", languageRoutes);
+app.use("/news", newsRoutes);
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware

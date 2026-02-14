@@ -6,7 +6,7 @@ import { correctNewsContent } from "../services/aiService.js";
 import upload from "../config/upload.js";
 import { createNews, getMyStatus } from "../controllers/newsController.js";
 
-const VALID_CATEGORIES = ["general", "politics", "sports", "business", "tech", "health", "entertainment", "current_affairs", "india", "international"];
+// VALID_CATEGORIES removed as unused
 
 const router = express.Router();
 
@@ -107,19 +107,7 @@ router.get("/saved", protect, async (req, res) => {
     }
 });
 
-// 🔹 READ MORE
-router.get("/:id", async (req, res) => {
-    try {
-        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-            return res.status(400).json({ message: "Invalid News ID format." });
-        }
-        const news = await News.findById(req.params.id);
-        if (!news) return res.status(404).json({ message: "News not found" });
-        res.json(news);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// GET /:id moved to end of file to prevent shadowing
 
 // 🔹 LIKE NEWS
 router.post("/:id/like", async (req, res) => {
@@ -205,6 +193,21 @@ router.post("/admin/reject/:id", protect, async (req, res) => {
         const { reason } = req.body;
         const news = await News.findByIdAndUpdate(req.params.id, { status: "rejected", rejectionReason: reason }, { new: true });
         res.json({ message: "News rejected", news });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// 🔹 READ MORE (Moved here to avoid shadowing specific routes)
+router.get("/:id", async (req, res) => {
+    try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid News ID format." });
+        }
+        const news = await News.findById(req.params.id);
+        if (!news) return res.status(404).json({ message: "News not found" });
+        res.json(news);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
