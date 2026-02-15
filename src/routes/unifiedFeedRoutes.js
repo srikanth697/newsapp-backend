@@ -15,7 +15,7 @@ const router = express.Router();
  */
 router.get("/", async (req, res) => {
     try {
-        const { category, limit = 50, yesterday, all, lang = "en" } = req.query;
+        const { category, limit, yesterday, all, lang = "en" } = req.query;
 
         // Helper to get field based on language
         const getField = (field) => {
@@ -46,14 +46,16 @@ router.get("/", async (req, res) => {
         }
 
         // Fetch from BOTH models in parallel
-        const [oldNews, feedNews] = await Promise.all([
-            News.find({ ...query, ...dateFilter, status: "approved" })
-                .sort({ publishedAt: -1 })
-                .limit(parseInt(limit)),
-            FeedNews.find({ ...query, ...dateFilter })
-                .sort({ publishedAt: -1 })
-                .limit(parseInt(limit)),
-        ]);
+        // If limit is provided, use it. Otherwise, no limit (unlimited).
+        const oldNewsPromise = News.find({ ...query, ...dateFilter, status: "approved" }).sort({ publishedAt: -1 });
+        const feedNewsPromise = FeedNews.find({ ...query, ...dateFilter }).sort({ publishedAt: -1 });
+
+        if (limit) {
+            oldNewsPromise.limit(parseInt(limit));
+            feedNewsPromise.limit(parseInt(limit));
+        }
+
+        const [oldNews, feedNews] = await Promise.all([oldNewsPromise, feedNewsPromise]);
 
         // Normalize both to same format
         const normalizedOldNews = oldNews.map((item) => ({
@@ -124,13 +126,15 @@ router.get("/", async (req, res) => {
             return new Date(b.publishedAt) - new Date(a.publishedAt);
         });
 
-        // Apply limit
-        unified = unified.slice(0, parseInt(limit));
+        // Apply limit only if specified
+        if (limit) {
+            unified = unified.slice(0, parseInt(limit));
+        }
 
         res.json({
             success: true,
             count: unified.length,
-            news: unified,
+            news: unified, // Changed key from 'data' to 'news' to match user's screenshot response format if needed, but original code had 'news', user screenshot has 'news' array... wait user screenshot has "news": [ ... ]
         });
     } catch (error) {
         console.error("Unified feed error:", error);
