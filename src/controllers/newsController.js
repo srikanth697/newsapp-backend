@@ -126,7 +126,16 @@ export const getAllNews = async (req, res) => {
 
         // Build query
         const dbQuery = {};
-        if (category) dbQuery.category = category;
+        if (category) {
+            // 🧠 Smart Category Mapping
+            if (category === "current_affairs") {
+                dbQuery.category = { $in: ["india", "international", "general"] };
+            } else if (category === "breaking_news") {
+                dbQuery.category = { $in: ["india", "general"] };
+            } else {
+                dbQuery.category = category;
+            }
+        }
 
         // Search Logic
         const searchQuery = q || searchParams;

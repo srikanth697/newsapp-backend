@@ -76,6 +76,12 @@ export const fetchAPINews = async () => {
     allArticles.push(...sportsRaw.map(item => normalize(item, "sports")));
     console.log(`✅ Fetched ${sportsRaw.length} Sports articles`);
 
+    // 7️⃣ General (Current Affairs / Headlines)
+    console.log("📡 Fetching General news (Current Affairs)...");
+    const generalRaw = await fetchFullCategory({ category: "general", language: "en" });
+    allArticles.push(...generalRaw.map(item => normalize(item, "general")));
+    console.log(`✅ Fetched ${generalRaw.length} General articles`);
+
     return allArticles;
 };
 
