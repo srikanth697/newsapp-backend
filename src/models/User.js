@@ -27,9 +27,18 @@ const userSchema = new mongoose.Schema(
             sparse: true, // Allows multiple nulls for non-social users
         },
 
-        // Forgot password
+        // Forgot password (Legacy)
         resetOTP: String,
         resetOTPExpire: Date,
+
+        // New Admin & Auth Features
+        role: {
+            type: String,
+            enum: ["user", "admin"],
+            default: "user"
+        },
+        resetCode: String,
+        resetCodeExpiry: Date,
 
         savedNews: [{
             type: mongoose.Schema.Types.ObjectId,
