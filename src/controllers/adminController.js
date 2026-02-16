@@ -1,5 +1,7 @@
 
 import User from "../models/User.js";
+import News from "../models/News.js";
+import FeedNews from "../models/FeedNews.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -139,6 +141,81 @@ export const resetPassword = async (req, res) => {
         res.json({ success: true, message: "Password reset successful" });
 
     } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 📊 DASHBOARD STATS (GET /api/admin/dashboard)
+export const getDashboardStats = async (req, res) => {
+    try {
+        // 1. Get Counts
+        const totalNews = await News.countDocuments(); // User manual posts
+        const feedNewsCount = await FeedNews.countDocuments(); // Auto-fetched posts
+        const userSubmitted = await News.countDocuments({ status: "pending" });
+        const totalUsers = await User.countDocuments({ role: "user" });
+
+        // Mock data for Quizzes as model might not exist yet
+        const totalQuizzes = 156;
+        const fakeNews = 23;
+
+        // 2. Growth Stats (Standard static data to match UI)
+        const growth = {
+            news: 12.8,
+            users: 23.1,
+            quizzes: 5.2,
+            fakeNews: -15.3
+        };
+
+        // 3. Recent Activity (Mock for now, will connect to logs later)
+        const recentActivity = [
+            {
+                user: "John Doe",
+                action: "Published new article",
+                detail: "Breaking: Major Tech Announcement",
+                time: "5 min ago",
+                avatar: ""
+            },
+            {
+                user: "Sarah Smith",
+                action: "Submitted news for review",
+                detail: "Politics Update",
+                time: "15 min ago",
+                avatar: ""
+            },
+            {
+                user: "New User",
+                action: "Registered an account",
+                detail: "",
+                time: "1 hour ago",
+                avatar: ""
+            }
+        ];
+
+        res.json({
+            success: true,
+            stats: {
+                totalNews: totalNews + feedNewsCount, // Combine sources for big number
+                userSubmitted,
+                totalUsers,
+                totalQuizzes,
+                fakeNews,
+                growth
+            },
+            analytics: {
+                months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+                newUsers: [400, 300, 500, 450, 600, 780],
+                newsPublished: [250, 200, 320, 290, 410, 450]
+            },
+            quickStats: {
+                totalViews: 156200, // Placeholder until tracking exists
+                engagement: 89.5,
+                activeUsers: 2341
+            },
+            recentActivity
+        });
+
+    } catch (error) {
+        console.error("Dashboard Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
