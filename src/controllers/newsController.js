@@ -5,6 +5,18 @@ import User from "../models/User.js";
  * 🛠️ Helper to Transform News for Response
  * Selects the requested language or falls back to English.
  */
+// 🖼️ Shared Fallback Logic (Should be in a utility file ideally, but duplicating for safety now)
+const FALLBACK_IMAGES = {
+    tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80",
+    business: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+    health: "https://images.unsplash.com/photo-1505751172569-e701e62f5500?w=800&q=80",
+    sports: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+    india: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&q=80",
+    international: "https://images.unsplash.com/photo-1529243856184-fd5465488984?w=800&q=80",
+    general: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80",
+    default: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80"
+};
+
 const transformNews = (news, lang = "en") => {
     // Helper to safely get the language value or fallback to 'en'
     const getField = (field) => {
@@ -16,13 +28,16 @@ const transformNews = (news, lang = "en") => {
         return field[lang] || field["en"] || Object.values(field)[0] || "";
     };
 
+    const originalImage = news.imageUrl || news.image;
+    const defaultImage = FALLBACK_IMAGES[news.category] || FALLBACK_IMAGES.default;
+
     return {
         id: news._id,
         title: getField(news.title),
         description: getField(news.description),
         content: getField(news.content),
         category: news.category,
-        imageUrl: news.imageUrl || news.image, // Support both new imageUrl and old image (base64)
+        imageUrl: originalImage || defaultImage, // Apply fallback if missing
         source: news.source,
         sourceUrl: news.sourceUrl,
         publishedAt: news.publishedAt,

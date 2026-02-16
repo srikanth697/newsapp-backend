@@ -55,42 +55,57 @@ router.get("/", async (req, res) => {
             feedNewsPromise.limit(parseInt(limit));
         }
 
+        // 🖼️ High-Quality Fallback Images
+        const FALLBACK_IMAGES = {
+            tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80",
+            business: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+            health: "https://images.unsplash.com/photo-1505751172569-e701e62f5500?w=800&q=80",
+            sports: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+            india: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&q=80",
+            international: "https://images.unsplash.com/photo-1529243856184-fd5465488984?w=800&q=80",
+            general: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80",
+            default: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80"
+        };
+
         const [oldNews, feedNews] = await Promise.all([oldNewsPromise, feedNewsPromise]);
 
         // Normalize both to same format
-        const normalizedOldNews = oldNews.map((item) => ({
-            _id: item._id,
-            title: getField(item.title),
-            description: getField(item.description),
-            summary: getField(item.description), // Add summary field
-            content: getField(item.content) || getField(item.description), // Fallback if content not set
-            image: item.imageUrl || item.image, // Support both new imageUrl and old image
-            url: item.sourceUrl,
-            sourceUrl: item.sourceUrl,
-            source: "NewsAPI", // Old news source
-            category: item.category,
-            country: item.country,
-            publishedAt: item.publishedAt,
-            likes: item.likes || 0,
-            shares: item.shares || 0,
-            savedCount: item.savedCount || 0,
-            isUserPost: item.isUserPost || false,
-            author: item.author,
-            score: 0, // Old news doesn't have smart score yet
-        }));
+        const normalizedOldNews = oldNews.map((item) => {
+            const img = item.imageUrl || item.image;
+            return {
+                _id: item._id,
+                title: getField(item.title),
+                description: getField(item.description),
+                summary: getField(item.description),
+                content: getField(item.content) || getField(item.description),
+                image: img || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // Fallback
+                url: item.sourceUrl,
+                sourceUrl: item.sourceUrl,
+                source: "NewsAPI",
+                category: item.category,
+                country: item.country,
+                publishedAt: item.publishedAt,
+                likes: item.likes || 0,
+                shares: item.shares || 0,
+                savedCount: item.savedCount || 0,
+                isUserPost: item.isUserPost || false,
+                author: item.author,
+                score: 0,
+            };
+        });
 
         const normalizedFeedNews = feedNews.map((item) => ({
             _id: item._id,
-            title: item.title, // FeedNews might not be multilingual yet, generally assumes one lang
-            description: item.summary, // Map summary to description
+            title: item.title,
+            description: item.summary,
             summary: item.summary,
             content: item.content,
-            image: item.image,
+            image: item.image || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // Fallback
             url: item.url,
             sourceUrl: item.url,
-            source: item.source, // RSS source name
+            source: item.source,
             category: item.category,
-            country: "GLOBAL", // RSS feeds are global
+            country: "GLOBAL",
             publishedAt: item.publishedAt,
             likes: item.likes || 0,
             shares: item.shares || 0,

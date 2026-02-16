@@ -85,14 +85,31 @@ export const fetchAPINews = async () => {
     return allArticles;
 };
 
+// 🖼️ High-Quality Fallback Images by Category
+const FALLBACK_IMAGES = {
+    tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80",
+    business: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+    health: "https://images.unsplash.com/photo-1505751172569-e701e62f5500?w=800&q=80",
+    sports: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+    india: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&q=80",
+    international: "https://images.unsplash.com/photo-1529243856184-fd5465488984?w=800&q=80",
+    general: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80",
+    default: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80"
+};
+
 // Helper: Normalize
-const normalize = (item, category) => ({
-    title: item.title?.trim(),
-    summary: item.description || "",
-    content: item.content || item.description || "",
-    url: item.url?.trim(),
-    image: item.urlToImage,
-    source: item.source?.name || "NewsAPI",
-    category: category,
-    publishedAt: new Date(item.publishedAt),
-});
+const normalize = (item, category) => {
+    // Select default image based on category
+    const defaultImage = FALLBACK_IMAGES[category] || FALLBACK_IMAGES.default;
+
+    return {
+        title: item.title?.trim(),
+        summary: item.description || "",
+        content: item.content || item.description || "",
+        url: item.url?.trim(),
+        image: item.urlToImage || defaultImage, // Use API image or fallback
+        source: item.source?.name || "NewsAPI",
+        category: category,
+        publishedAt: new Date(item.publishedAt),
+    };
+};
