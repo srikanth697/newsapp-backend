@@ -83,7 +83,8 @@ export const forgotPassword = async (req, res) => {
 
         // TODO: Integrate actual email service (Nodemailer/SendGrid)
 
-        res.json({ success: true, message: "Verification code sent to your email" });
+        // ⚠️ FOR TESTING ONLY: Returning code in response so you can verify it
+        res.json({ success: true, message: "Verification code sent to your email", code });
 
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
