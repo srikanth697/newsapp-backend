@@ -16,13 +16,20 @@ export const protect = async (req, res, next) => {
 
             // Fetch user from DB excluding password
             // decoded.id comes from the payload we signed (adminLogin/userLogin)
-            req.user = await User.findById(decoded.id || decoded.userId).select("-password");
+            const userId = decoded.id || decoded.userId;
+
+            if (!userId) {
+                return res.status(401).json({ success: false, message: "Token invalid: No user ID in payload" });
+            }
+
+            req.user = await User.findById(userId).select("-password");
 
             if (!req.user) {
+                console.error(`User not found for ID: ${userId}`);
                 return res.status(401).json({ success: false, message: "User not found" });
             }
 
-            req.userId = req.user._id; // Compatibility for controllers using req.userId
+            req.userId = req.user._id;
 
 
             next();
