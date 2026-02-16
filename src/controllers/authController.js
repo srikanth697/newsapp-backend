@@ -51,6 +51,12 @@ export const signup = async (req, res) => {
             code: "SIGNUP_SUCCESS",
             message: "User registered successfully",
             token,
+            user: {
+                id: user._id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role
+            }
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -91,6 +97,13 @@ export const login = async (req, res) => {
             code: "LOGIN_SUCCESS",
             message: "Login successful",
             token,
+            user: {
+                id: user._id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar
+            }
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
