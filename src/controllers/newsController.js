@@ -287,3 +287,20 @@ export const getMyStatus = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+/**
+ * 👁️ INCREMENT VIEW COUNT
+ * PUT /api/news/:id/view
+ */
+export const incrementNewsView = async (req, res) => {
+    try {
+        const news = await News.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { views: 1 } },
+            { new: true }
+        );
+        res.json({ success: true, views: news.views });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

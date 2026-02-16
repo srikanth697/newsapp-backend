@@ -29,16 +29,20 @@ const NewsSchema = new mongoose.Schema({
 
     // Media
     imageUrl: { type: String }, // URL or Base64 string
-    source: { type: String, default: "System" },
+    videoUrl: { type: String }, // NEW: Video file path
+    audioUrl: { type: String }, // NEW: Audio file path
+    source: { type: String, default: "Admin" }, // Default "Admin" now
     sourceUrl: String,
 
     // Metadata
-    category: { type: String, required: true, index: true }, // e.g., politics, sports
+    category: { type: mongoose.Schema.Types.Mixed, required: true, index: true }, // Allow String OR ObjectId
+    language: { type: String, default: "en" }, // NEW: Specific language of the post
     country: { type: String, default: "IN" },
 
     publishedAt: { type: Date, default: Date.now, index: true },
 
     // Social Counters
+    views: { type: Number, default: 0 }, // NEW: View Count
     likes: { type: Number, default: 0 },
     shares: { type: Number, default: 0 },
     savedCount: { type: Number, default: 0 },
@@ -48,8 +52,8 @@ const NewsSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     status: {
         type: String,
-        enum: ["pending", "approved", "rejected"],
-        default: "pending",
+        enum: ["draft", "published", "pending", "approved", "rejected"], // Updated Enums
+        default: "draft",
         index: true
     },
     rejectionReason: String,

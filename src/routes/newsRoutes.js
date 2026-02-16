@@ -7,7 +7,8 @@ import {
    getSingleNews,
    updateNews,
    deleteNews,
-   getMyStatus
+   getMyStatus,
+   incrementNewsView
 } from "../controllers/newsController.js";
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router.get("/today", getAllNews);    // Maps to getAllNews logic
 router.get("/my-status", protect, getMyStatus);
 
 //  👍 SOCIAL ACTIONS (Basic Implementation)
+router.put("/:id/view", incrementNewsView); // 👁️ NEW VIEW API
 router.post("/:id/like", async (req, res) => {
    // TODO: Move to controller properly. For now, return success to unblock client.
    res.json({ success: true, likes: 0 });

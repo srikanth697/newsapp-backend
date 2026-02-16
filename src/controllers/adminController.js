@@ -219,3 +219,146 @@ export const getDashboardStats = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ==========================================
+// 📰 NEWS MANAGEMENT
+// ==========================================
+
+// 1. GET ALL NEWS (With Filters & Pagination)
+export const getAllNews = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search, category, status } = req.query;
+        const query = {};
+
+        // Search by Title (English fallback for regex)
+        if (search) {
+            query["title.en"] = { $regex: search, $options: "i" };
+        }
+
+        if (category) query.category = category;
+        if (status) query.status = status;
+
+        const total = await News.countDocuments(query);
+        const news = await News.find(query)
+            .populate("author", "fullName email")
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        res.json({
+            success: true,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            news
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. GET SINGLE NEWS
+export const getSingleNews = async (req, res) => {
+    try {
+        const news = await News.findById(req.params.id).populate("author", "fullName");
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+
+        res.json({ success: true, news });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 3. CREATE NEWS (Admin)
+export const createNewsAdmin = async (req, res) => {
+    try {
+        const { title, description, category, language = "en", status = "draft" } = req.body;
+        console.log("Admin Creating News:", req.body);
+
+        // Handle Media Uploads
+        let imageUrl = "", videoUrl = "", audioUrl = "";
+
+        if (req.files) {
+            if (req.files.image) imageUrl = `/uploads/images/${req.files.image[0].filename}`;
+            if (req.files.video) videoUrl = `/uploads/videos/${req.files.video[0].filename}`;
+            if (req.files.audio) audioUrl = `/uploads/audio/${req.files.audio[0].filename}`;
+        }
+
+        // Construct Multilingual Objects
+        // If admin selects "Hindi", we verify the input is going to title.hi
+        // For simplicity, we default to saving in the specific lang key AND english as fallback if missing
+
+        const titleObj = { [language]: title };
+        const descObj = { [language]: description };
+
+        if (language !== "en") {
+            titleObj.en = title; // Fallback ensure
+            descObj.en = description;
+        }
+
+        const newNews = new News({
+            title: titleObj,
+            description: descObj,
+            category, // String or ObjectId depending on input
+            language,
+            status,
+            source: "Admin",
+            imageUrl,
+            videoUrl,
+            audioUrl,
+            author: req.user._id,
+            isUserPost: false
+        });
+
+        await newNews.save();
+
+        res.status(201).json({ success: true, message: "News created successfully", news: newNews });
+
+    } catch (error) {
+        console.error("Create News Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 4. UPDATE NEWS
+export const updateNewsAdmin = async (req, res) => {
+    try {
+        const { title, description, category, language, status } = req.body;
+        const news = await News.findById(req.params.id);
+
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+
+        // Update Text Fields
+        if (title && language) news.title[language] = title;
+        if (description && language) news.description[language] = description;
+        if (category) news.category = category;
+        if (status) news.status = status;
+        if (language) news.language = language;
+
+        // Handle Media Replacements
+        if (req.files) {
+            if (req.files.image) news.imageUrl = `/uploads/images/${req.files.image[0].filename}`;
+            if (req.files.video) news.videoUrl = `/uploads/videos/${req.files.video[0].filename}`;
+            if (req.files.audio) news.audioUrl = `/uploads/audio/${req.files.audio[0].filename}`;
+        }
+
+        await news.save();
+
+        res.json({ success: true, message: "News updated successfully", news });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 5. DELETE NEWS
+export const deleteNewsAdmin = async (req, res) => {
+    try {
+        const news = await News.findByIdAndDelete(req.params.id);
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+
+        res.json({ success: true, message: "News deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
