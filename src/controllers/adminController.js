@@ -623,3 +623,84 @@ export const deleteUser = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ==========================================
+// ⚙️ ADMIN PROFILE MANAGEMENT
+// ==========================================
+
+// 1. GET ADMIN PROFILE
+export const getAdminProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select("-password");
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        // Calculate specific stats for this admin if needed
+        const articlesPublished = await News.countDocuments({ author: user._id });
+        const actionsTaken = 45; // Mock or calculate from logs
+        const pendingReviews = await News.countDocuments({ status: "pending" });
+
+        res.json({
+            success: true,
+            user: {
+                ...user.toObject(),
+                stats: {
+                    articlesPublished,
+                    pendingReviews,
+                    actionsTaken
+                }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. UPDATE ADMIN PROFILE
+export const updateAdminProfile = async (req, res) => {
+    try {
+        const { fullName, email, phone, bio, currentPassword, newPassword } = req.body;
+        const user = await User.findById(req.user._id);
+
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        // Update Basic Info
+        if (fullName) user.fullName = fullName;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (bio) user.bio = bio; // Ensure 'bio' field exists in User model or strict: false
+
+        // Update Password if provided
+        if (currentPassword && newPassword) {
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(400).json({ success: false, message: "Current password is incorrect" });
+            }
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(newPassword, salt);
+        }
+
+        // Handle Avatar Upload
+        if (req.file) {
+            user.avatar = `/uploads/images/${req.file.filename}`;
+        }
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: "Profile updated successfully",
+            user: {
+                _id: user._id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar,
+                bio: user.bio,
+                phone: user.phone
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

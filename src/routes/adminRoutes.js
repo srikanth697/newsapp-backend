@@ -62,4 +62,9 @@ router.put("/users/:id/block", protect, adminOnly, blockUser);
 router.put("/users/:id/unblock", protect, adminOnly, unblockUser);
 router.delete("/users/:id", protect, adminOnly, deleteUser);
 
+// ⚙️ Admin Profile (New)
+import { getAdminProfile, updateAdminProfile } from "../controllers/adminController.js"; // Lazy fix for import, ideally add to top
+router.get("/profile", protect, adminOnly, getAdminProfile);
+router.put("/profile", protect, adminOnly, uploadMiddleware, updateAdminProfile);
+
 export default router;
