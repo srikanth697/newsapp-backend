@@ -9,7 +9,13 @@ import {
     getSingleNews,
     createNewsAdmin,
     updateNewsAdmin,
-    deleteNewsAdmin
+    deleteNewsAdmin,
+    getUserSubmissions,
+    getSubmissionStats,
+    getSingleSubmission,
+    approveSubmission,
+    rejectSubmission,
+    markFakeSubmission
 } from "../controllers/adminController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
@@ -31,5 +37,14 @@ router.get("/news/:id", protect, adminOnly, getSingleNews);
 router.post("/news", protect, adminOnly, uploadMiddleware, createNewsAdmin);
 router.put("/news/:id", protect, adminOnly, uploadMiddleware, updateNewsAdmin);
 router.delete("/news/:id", protect, adminOnly, deleteNewsAdmin);
+
+// 📬 User Submitted News (Approval System)
+router.get("/submissions", protect, adminOnly, getUserSubmissions);
+router.get("/submissions/stats", protect, adminOnly, getSubmissionStats); // Stats must be before /:id to avoid conflict
+router.get("/submissions/:id", protect, adminOnly, getSingleSubmission);
+
+router.put("/submissions/:id/approve", protect, adminOnly, approveSubmission);
+router.put("/submissions/:id/reject", protect, adminOnly, rejectSubmission);
+router.put("/submissions/:id/mark-fake", protect, adminOnly, markFakeSubmission);
 
 export default router;

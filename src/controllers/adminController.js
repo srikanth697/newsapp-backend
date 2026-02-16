@@ -362,3 +362,123 @@ export const deleteNewsAdmin = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ==========================================
+// 📬 USER SUBMITTED NEWS (APPROVAL SYSTEM)
+// ==========================================
+
+// 1. GET ALL SUBMISSIONS (With Filters)
+export const getUserSubmissions = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search, status } = req.query;
+
+        // Filter: Only User submitted news (assumes isUserPost: true or source: 'User')
+        const filter = { $or: [{ isUserPost: true }, { source: "User" }] };
+
+        if (search) {
+            filter["title.en"] = { $regex: search, $options: "i" };
+        }
+
+        if (status) {
+            filter.status = status;
+        }
+
+        const submissions = await News.find(filter)
+            .populate("author", "fullName email avatar")
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const total = await News.countDocuments(filter);
+
+        res.json({
+            success: true,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            submissions
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. GET SUBMISSION STATS
+export const getSubmissionStats = async (req, res) => {
+    try {
+        const filter = { $or: [{ isUserPost: true }, { source: "User" }] };
+
+        const pending = await News.countDocuments({ ...filter, status: "pending" });
+        const approved = await News.countDocuments({ ...filter, status: "published" }); // 'published' means approved/live
+        const rejected = await News.countDocuments({ ...filter, status: "rejected" });
+        const fake = await News.countDocuments({ ...filter, status: "fake" });
+
+        res.json({
+            success: true,
+            stats: {
+                pending,
+                approved,
+                rejected,
+                fake
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 3. GET SINGLE SUBMISSION
+export const getSingleSubmission = async (req, res) => {
+    try {
+        const submission = await News.findById(req.params.id)
+            .populate("author", "fullName email avatar");
+
+        if (!submission) {
+            return res.status(404).json({ success: false, message: "Submission not found" });
+        }
+
+        res.json({ success: true, submission });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 4. APPROVE SUBMISSION
+export const approveSubmission = async (req, res) => {
+    try {
+        await News.findByIdAndUpdate(req.params.id, {
+            status: "published" // Make it live
+        });
+
+        res.json({ success: true, message: "Submission approved and published" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 5. REJECT SUBMISSION
+export const rejectSubmission = async (req, res) => {
+    try {
+        await News.findByIdAndUpdate(req.params.id, {
+            status: "rejected"
+        });
+
+        res.json({ success: true, message: "Submission rejected" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 6. MARK AS FAKE
+export const markFakeSubmission = async (req, res) => {
+    try {
+        await News.findByIdAndUpdate(req.params.id, {
+            status: "fake"
+        });
+
+        res.json({ success: true, message: "Submission marked as Fake News" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

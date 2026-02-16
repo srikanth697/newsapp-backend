@@ -52,7 +52,7 @@ const NewsSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     status: {
         type: String,
-        enum: ["draft", "published", "pending", "approved", "rejected"], // Updated Enums
+        enum: ["draft", "published", "pending", "approved", "rejected", "fake"], // Updated Enums
         default: "draft",
         index: true
     },
