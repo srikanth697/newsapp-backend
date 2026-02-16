@@ -1,5 +1,6 @@
 import News from "../models/News.js";
 import User from "../models/User.js";
+import { createSystemNotification } from "../utils/notificationUtils.js";
 
 /**
  * 🛠️ Helper to Transform News for Response
@@ -110,6 +111,13 @@ export const createNews = async (req, res) => {
 
         if (req.userId) {
             await User.findByIdAndUpdate(req.userId, { $inc: { postsCount: 1 } });
+
+            // 🔔 Notify Admin of new submission
+            await createSystemNotification(
+                "User submission requires review",
+                `New article submitted by user`,
+                "warning"
+            );
         }
 
         res.status(201).json({

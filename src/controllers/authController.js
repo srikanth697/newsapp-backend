@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import { createSystemNotification } from "../utils/notificationUtils.js";
 
 const client = new OAuth2Client();
 
@@ -39,6 +40,13 @@ export const signup = async (req, res) => {
             phone,
             password: hashedPassword,
         });
+
+        // 🔔 Notify Admin
+        await createSystemNotification(
+            "New user registered",
+            `${fullName} has joined the platform`,
+            "info"
+        );
 
         const token = jwt.sign(
             { userId: user._id },
