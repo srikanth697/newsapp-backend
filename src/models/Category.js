@@ -11,10 +11,17 @@ const CategorySchema = new mongoose.Schema({
     slug: {
         type: String,
         lowercase: true,
-        trim: true
+        trim: true,
+        required: true,
+        unique: true
     },
-    description: String,
-    image: String
+    description: {
+        type: String
+    },
+    articleCount: {
+        type: Number,
+        default: 0
+    }
 }, {
     timestamps: true
 });

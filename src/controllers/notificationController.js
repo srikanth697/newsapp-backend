@@ -62,7 +62,17 @@ export const getNotificationStats = async (req, res) => {
 // 3. SEND NOTIFICATION (Action Button)
 export const sendNotification = async (req, res) => {
     try {
-        const { title, message, targetAudience = "All Users" } = req.body;
+        let { title, message, targetAudience = "All Users" } = req.body;
+
+        // Normalize targetAudience to match Enum
+        const audienceMap = {
+            "all": "All Users",
+            "active": "Active Users",
+            "inactive": "Inactive Users"
+        };
+        if (targetAudience && audienceMap[targetAudience.toLowerCase()]) {
+            targetAudience = audienceMap[targetAudience.toLowerCase()];
+        }
         let imageUrl = "";
 
         if (req.file) {

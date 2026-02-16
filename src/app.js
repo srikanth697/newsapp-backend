@@ -10,6 +10,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 import quizRoutes from "./routes/quizRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -28,6 +29,8 @@ app.use("/api/news", newsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/categories", categoryRoutes);
+
 
 
 // Fallback Routes (for clients omitting /api prefix)
