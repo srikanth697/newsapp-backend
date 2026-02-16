@@ -54,8 +54,8 @@ router.put("/submissions/:id/reject", protect, adminOnly, rejectSubmission);
 router.put("/submissions/:id/mark-fake", protect, adminOnly, markFakeSubmission);
 
 // 👤 User Management (New)
+router.get("/users/stats", protect, adminOnly, getUserStats); // Stats MUST be before :id
 router.get("/users", protect, adminOnly, getAllUsers);
-router.get("/users/stats", protect, adminOnly, getUserStats);
 router.get("/users/:id", protect, adminOnly, getSingleUser);
 
 router.put("/users/:id/block", protect, adminOnly, blockUser);
