@@ -89,32 +89,47 @@ export const submitQuiz = async (req, res) => {
         const quiz = await Quiz.findById(id);
         if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
 
-        let score = 0;
         let correctCount = 0;
         const totalQuestions = quiz.questions.length;
 
         // Detailed results for feedback
-        const results = quiz.questions.map((q, index) => {
+        const responses = quiz.questions.map((q, index) => {
             const isCorrect = q.correctOptionIndex === answers[index];
             if (isCorrect) correctCount++;
             return {
                 questionId: q._id,
-                correct: isCorrect,
-                correctOption: q.correctOptionIndex,
-                explanation: q.explanation
+                selectedOptionIndex: answers[index],
+                isCorrect
             };
         });
 
-        score = (correctCount / totalQuestions) * 100;
+        const score = (correctCount / totalQuestions) * 100;
 
-        // Optional: Save attempt via a Result model if needed later
+        // Save Attempt
+        const attempt = await UserQuizAttempt.create({
+            user: req.user._id,
+            quiz: quiz._id,
+            score,
+            totalQuestions,
+            correctAnswers: correctCount,
+            responses
+        });
+
+        // Results with explanations for frontend display
+        const results = quiz.questions.map((q, index) => ({
+            questionId: q._id,
+            correct: q.correctOptionIndex === answers[index],
+            correctOption: q.correctOptionIndex,
+            explanation: q.explanation
+        }));
 
         res.json({
             success: true,
             score,
             correctCount,
             totalQuestions,
-            results
+            results,
+            attemptId: attempt._id
         });
 
     } catch (error) {
@@ -141,6 +156,32 @@ export const deleteQuiz = async (req, res) => {
         if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
 
         res.json({ success: true, message: "Quiz deleted" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 7. GET QUIZ ATTEMPTS (Admin View)
+export const getQuizAttempts = async (req, res) => {
+    try {
+        const attempts = await UserQuizAttempt.find({ quiz: req.params.id })
+            .populate("user", "fullName email avatar")
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: attempts.length, attempts });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 8. GET USER QUIZ HISTORY (User View)
+export const getUserQuizHistory = async (req, res) => {
+    try {
+        const attempts = await UserQuizAttempt.find({ user: req.user._id })
+            .populate("quiz", "title category difficulty")
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: attempts.length, attempts });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
