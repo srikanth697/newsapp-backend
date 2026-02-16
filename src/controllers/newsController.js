@@ -276,13 +276,32 @@ export const deleteNews = async (req, res) => {
 /**
  * 👤 GET MY STATUS (Legacy Support)
  */
+/**
+ * 👤 GET MY STATUS (Legacy Support)
+ */
 export const getMyStatus = async (req, res) => {
     try {
-        const pending = await News.findOne({ author: req.userId, status: "pending" });
+        // Find the most recent submission by this user
+        const latestSubmission = await News.findOne({ author: req.userId })
+            .sort({ createdAt: -1 });
+
+        if (!latestSubmission) {
+            return res.json({
+                hasPending: false,
+                status: null,
+                message: "No submissions found"
+            });
+        }
+
         res.json({
-            hasPending: !!pending,
-            pendingNewsId: pending?._id || null
+            hasPending: latestSubmission.status === "pending",
+            status: latestSubmission.status, // "pending", "published", "rejected", "fake"
+            pendingNewsId: latestSubmission._id,
+            title: latestSubmission.title?.en || latestSubmission.title,
+            rejectionReason: latestSubmission.rejectionReason || null,
+            publishedAt: latestSubmission.publishedAt
         });
+
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
