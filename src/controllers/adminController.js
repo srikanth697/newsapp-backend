@@ -507,7 +507,7 @@ export const getAllUsers = async (req, res) => {
 
         const filter = { role: "user" };
 
-        if (search) {
+        if (search && search !== "undefined") {
             filter.fullName = { $regex: search, $options: "i" }; // Assuming fullName instead of name based on User model
         }
 
