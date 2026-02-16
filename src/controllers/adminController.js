@@ -691,8 +691,8 @@ export const updateAdminProfile = async (req, res) => {
         }
 
         // Handle Avatar Upload
-        if (req.file) {
-            user.avatar = `/uploads/images/${req.file.filename}`;
+        if (req.files && req.files.image) {
+            user.avatar = `/uploads/images/${req.files.image[0].filename}`;
         }
 
         await user.save();

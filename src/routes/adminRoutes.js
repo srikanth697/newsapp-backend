@@ -21,7 +21,9 @@ import {
     getSingleUser,
     blockUser,
     unblockUser,
-    deleteUser
+    deleteUser,
+    getAdminProfile,
+    updateAdminProfile
 } from "../controllers/adminController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
@@ -63,7 +65,6 @@ router.put("/users/:id/unblock", protect, adminOnly, unblockUser);
 router.delete("/users/:id", protect, adminOnly, deleteUser);
 
 // ⚙️ Admin Profile (New)
-import { getAdminProfile, updateAdminProfile } from "../controllers/adminController.js"; // Lazy fix for import, ideally add to top
 router.get("/profile", protect, adminOnly, getAdminProfile);
 router.put("/profile", protect, adminOnly, uploadMiddleware, updateAdminProfile);
 
