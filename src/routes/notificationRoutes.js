@@ -16,8 +16,22 @@ const router = express.Router();
 router.get("/", protect, adminOnly, getAllNotifications);
 router.get("/stats", protect, adminOnly, getNotificationStats);
 
+import multer from "multer";
+
+// Configure simple storage for notifications
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "uploads/images/");
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + "-" + file.originalname);
+    }
+});
+
+const notificationUpload = multer({ storage });
+
 // 📬 Send Notification (Action Button)
-router.post("/send", protect, adminOnly, uploadMiddleware, sendNotification);
+router.post("/send", protect, adminOnly, notificationUpload.single("image"), sendNotification);
 
 // ✏️ Actions (Read, Delete)
 router.put("/:id/read", protect, adminOnly, markNotificationRead);

@@ -65,8 +65,8 @@ export const sendNotification = async (req, res) => {
         const { title, message, targetAudience = "All Users" } = req.body;
         let imageUrl = "";
 
-        if (req.files && req.files.image) {
-            imageUrl = `/uploads/images/${req.files.image[0].filename}`;
+        if (req.file) {
+            imageUrl = `/uploads/images/${req.file.filename}`;
         }
 
         // Logic here: Typically you'd use FCM (Firebase) to push to devices.
