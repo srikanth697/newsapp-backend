@@ -512,7 +512,15 @@ export const getAllUsers = async (req, res) => {
         }
 
         if (status && status !== "all") {
-            filter.status = status;
+            if (status === "active") {
+                // Include users with status "active" OR missing status (legacy users)
+                filter.$or = [
+                    { status: "active" },
+                    { status: { $exists: false } }
+                ];
+            } else {
+                filter.status = status;
+            }
         }
 
         const users = await User.find(filter)
