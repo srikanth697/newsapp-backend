@@ -49,10 +49,12 @@ export const adminLogin = async (req, res) => {
             token,
             admin: {
                 _id: user._id,
-                name: user.fullName || "Admin",
+                fullName: user.fullName || "Admin",
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                avatar: user.avatar || "",
+                phone: user.phone || "N/A",
+                joinedAt: user.createdAt
             },
         });
     } catch (error) {
@@ -642,7 +644,16 @@ export const getAdminProfile = async (req, res) => {
         res.json({
             success: true,
             user: {
-                ...user.toObject(),
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+                phone: user.phone || "N/A",
+                bio: user.bio || "N/A",
+                location: user.location || "N/A",
+                avatar: user.avatar || "",
+                status: user.status || "active",
+                joinedAt: user.createdAt,
                 stats: {
                     articlesPublished,
                     pendingReviews,
@@ -691,12 +702,15 @@ export const updateAdminProfile = async (req, res) => {
             message: "Profile updated successfully",
             user: {
                 _id: user._id,
-                name: user.fullName,
+                fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar,
-                bio: user.bio,
-                phone: user.phone
+                phone: user.phone || "N/A",
+                bio: user.bio || "N/A",
+                location: user.location || "N/A",
+                avatar: user.avatar || "",
+                status: user.status || "active",
+                joinedAt: user.createdAt
             }
         });
 
