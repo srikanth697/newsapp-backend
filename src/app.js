@@ -8,6 +8,8 @@ import languageRoutes from "./routes/languageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
+import quizRoutes from "./routes/quizRoutes.js";
+
 const app = express();
 app.set('trust proxy', 1);
 
@@ -23,6 +25,7 @@ app.use("/api/unified", unifiedFeedRoutes);
 app.use("/api/language", languageRoutes); // Fixed path
 app.use("/api/news", newsRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/quiz", quizRoutes);
 
 // Fallback Routes (for clients omitting /api prefix)
 app.use("/auth", authRoutes);
@@ -31,6 +34,7 @@ app.use("/feed", feedRoutes);
 app.use("/unified", unifiedFeedRoutes);
 app.use("/language", languageRoutes);
 app.use("/news", newsRoutes);
+app.use("/quiz", quizRoutes);
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware
