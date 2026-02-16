@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema(
         },
         resetCode: String,
         resetCodeExpiry: Date,
+        status: {
+            type: String,
+            enum: ["active", "blocked"],
+            default: "active"
+        },
 
         savedNews: [{
             type: mongoose.Schema.Types.ObjectId,

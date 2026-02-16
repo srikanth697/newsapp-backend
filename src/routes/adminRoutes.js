@@ -15,7 +15,13 @@ import {
     getSingleSubmission,
     approveSubmission,
     rejectSubmission,
-    markFakeSubmission
+    markFakeSubmission,
+    getAllUsers,
+    getUserStats,
+    getSingleUser,
+    blockUser,
+    unblockUser,
+    deleteUser
 } from "../controllers/adminController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
@@ -46,5 +52,14 @@ router.get("/submissions/:id", protect, adminOnly, getSingleSubmission);
 router.put("/submissions/:id/approve", protect, adminOnly, approveSubmission);
 router.put("/submissions/:id/reject", protect, adminOnly, rejectSubmission);
 router.put("/submissions/:id/mark-fake", protect, adminOnly, markFakeSubmission);
+
+// 👤 User Management (New)
+router.get("/users", protect, adminOnly, getAllUsers);
+router.get("/users/stats", protect, adminOnly, getUserStats);
+router.get("/users/:id", protect, adminOnly, getSingleUser);
+
+router.put("/users/:id/block", protect, adminOnly, blockUser);
+router.put("/users/:id/unblock", protect, adminOnly, unblockUser);
+router.delete("/users/:id", protect, adminOnly, deleteUser);
 
 export default router;

@@ -483,6 +483,7 @@ export const rejectSubmission = async (req, res) => {
 };
 
 // 6. MARK AS FAKE
+// 6. MARK AS FAKE
 export const markFakeSubmission = async (req, res) => {
     try {
         await News.findByIdAndUpdate(req.params.id, {
@@ -490,6 +491,126 @@ export const markFakeSubmission = async (req, res) => {
         });
 
         res.json({ success: true, message: "Submission marked as Fake News" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ==========================================
+// 👤 USERS MANAGEMENT
+// ==========================================
+
+// 1. GET ALL USERS (Search + Filter + Pagination)
+export const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search, status } = req.query;
+
+        const filter = { role: "user" };
+
+        if (search) {
+            filter.fullName = { $regex: search, $options: "i" }; // Assuming fullName instead of name based on User model
+        }
+
+        if (status && status !== "all") {
+            filter.status = status;
+        }
+
+        const users = await User.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const total = await User.countDocuments(filter);
+
+        res.json({
+            success: true,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            users
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. GET USER STATS (Top Cards)
+export const getUserStats = async (req, res) => {
+    try {
+        const total = await User.countDocuments({ role: "user" });
+        const active = await User.countDocuments({ role: "user", status: "active" });
+        const blocked = await User.countDocuments({ role: "user", status: "blocked" });
+
+        res.json({
+            success: true,
+            stats: { total, active, blocked }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 3. GET SINGLE USER (View Action)
+export const getSingleUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Get submission counts
+        const totalSubmissions = await News.countDocuments({
+            author: user._id, // Match by author ID
+            $or: [{ isUserPost: true }, { source: { $in: ["User", "user", "Android", "iOS"] } }]
+        });
+
+        // You can add more detailed counts if needed (approved, pending, etc.)
+
+        res.json({
+            success: true,
+            user: {
+                ...user.toObject(),
+                totalSubmissions
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 4. BLOCK USER
+export const blockUser = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.params.id, {
+            status: "blocked"
+        });
+
+        res.json({ success: true, message: "User blocked successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 5. UNBLOCK USER
+export const unblockUser = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.params.id, {
+            status: "active"
+        });
+
+        res.json({ success: true, message: "User unblocked successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 6. DELETE USER
+export const deleteUser = async (req, res) => {
+    try {
+        await User.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true, message: "User deleted successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
