@@ -373,7 +373,12 @@ export const getUserSubmissions = async (req, res) => {
         const { page = 1, limit = 10, search, status } = req.query;
 
         // Filter: Only User submitted news (assumes isUserPost: true or source: 'User')
-        const filter = { $or: [{ isUserPost: true }, { source: "User" }] };
+        const filter = {
+            $or: [
+                { isUserPost: true },
+                { source: { $in: ["User", "user", "Android", "iOS"] } }
+            ]
+        };
 
         if (search) {
             filter["title.en"] = { $regex: search, $options: "i" };
@@ -382,6 +387,8 @@ export const getUserSubmissions = async (req, res) => {
         if (status) {
             filter.status = status;
         }
+
+        console.log("Fetching Submissions with Filter:", JSON.stringify(filter));
 
         const submissions = await News.find(filter)
             .populate("author", "fullName email avatar")
@@ -407,7 +414,12 @@ export const getUserSubmissions = async (req, res) => {
 // 2. GET SUBMISSION STATS
 export const getSubmissionStats = async (req, res) => {
     try {
-        const filter = { $or: [{ isUserPost: true }, { source: "User" }] };
+        const filter = {
+            $or: [
+                { isUserPost: true },
+                { source: { $in: ["User", "user", "Android", "iOS"] } }
+            ]
+        };
 
         const pending = await News.countDocuments({ ...filter, status: "pending" });
         const approved = await News.countDocuments({ ...filter, status: "published" }); // 'published' means approved/live
