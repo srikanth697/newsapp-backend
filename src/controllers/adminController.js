@@ -2,6 +2,7 @@
 import User from "../models/User.js";
 import News from "../models/News.js";
 import FeedNews from "../models/FeedNews.js";
+import Quiz from "../models/Quiz.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -150,17 +151,30 @@ export const resetPassword = async (req, res) => {
 // 📊 DASHBOARD STATS (GET /api/admin/dashboard)
 export const getDashboardStats = async (req, res) => {
     try {
-        // 1. Get Counts
-        const totalNews = await News.countDocuments(); // User manual posts
-        const feedNewsCount = await FeedNews.countDocuments(); // Auto-fetched posts
+        // 1. Get Core Counts
+        const adminNews = await News.countDocuments({ isUserPost: false, source: "Admin" });
         const userSubmitted = await News.countDocuments({ status: "pending" });
         const totalUsers = await User.countDocuments({ role: "user" });
+        const totalQuizzes = await Quiz.countDocuments();
+        const fakeNews = await News.countDocuments({ status: "fake" });
 
-        // Mock data for Quizzes as model might not exist yet
-        const totalQuizzes = 156;
-        const fakeNews = 23;
+        // 2. API vs RSS Breakdown
+        const rssSources = ["BBC News", "NY Times World", "BBC Tech", "The Guardian"];
 
-        // 2. Growth Stats (Standard static data to match UI)
+        const rssCount = await FeedNews.countDocuments({ source: { $in: rssSources } });
+        const apiCount = (await FeedNews.countDocuments({ source: { $nin: rssSources } }))
+            + (await News.countDocuments({ source: "NewsAPI" }));
+
+        const feedNewsCount = await FeedNews.countDocuments();
+
+        // 3. Category Breakdown (for charts)
+        const categories = await FeedNews.aggregate([
+            { $group: { _id: "$category", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 6 }
+        ]);
+
+        // 4. Growth Stats (Standard static data for now)
         const growth = {
             news: 12.8,
             users: 23.1,
@@ -168,35 +182,26 @@ export const getDashboardStats = async (req, res) => {
             fakeNews: -15.3
         };
 
-        // 3. Recent Activity (Mock for now, will connect to logs later)
-        const recentActivity = [
-            {
-                user: "John Doe",
-                action: "Published new article",
-                detail: "Breaking: Major Tech Announcement",
-                time: "5 min ago",
-                avatar: ""
-            },
-            {
-                user: "Sarah Smith",
-                action: "Submitted news for review",
-                detail: "Politics Update",
-                time: "15 min ago",
-                avatar: ""
-            },
-            {
-                user: "New User",
-                action: "Registered an account",
-                detail: "",
-                time: "1 hour ago",
-                avatar: ""
-            }
-        ];
+        // 5. Recent Activity (Fetch real recent logs/posts)
+        const recentNews = await News.find()
+            .populate("author", "fullName avatar")
+            .sort({ createdAt: -1 })
+            .limit(3);
+
+        const recentActivity = recentNews.map(item => ({
+            user: item.author?.fullName || "Admin",
+            action: item.status === "published" ? "Published news" : "Submitted news",
+            detail: item.title?.en || "New Post",
+            time: "Recently",
+            avatar: item.author?.avatar || ""
+        }));
 
         res.json({
             success: true,
             stats: {
-                totalNews: totalNews + feedNewsCount, // Combine sources for big number
+                totalNews: adminNews + feedNewsCount + (await News.countDocuments({ isUserPost: true })),
+                rssNews: rssCount,
+                apiNews: apiCount,
                 userSubmitted,
                 totalUsers,
                 totalQuizzes,
@@ -206,10 +211,11 @@ export const getDashboardStats = async (req, res) => {
             analytics: {
                 months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
                 newUsers: [400, 300, 500, 450, 600, 780],
-                newsPublished: [250, 200, 320, 290, 410, 450]
+                newsPublished: [250, 200, 320, 290, 410, 450],
+                categories: categories.map(c => ({ name: c._id, value: c.count }))
             },
             quickStats: {
-                totalViews: 156200, // Placeholder until tracking exists
+                totalViews: 156200,
                 engagement: 89.5,
                 activeUsers: 2341
             },
@@ -510,22 +516,19 @@ export const getAllUsers = async (req, res) => {
         const filter = { role: "user" };
 
         if (search && search !== "undefined") {
-            filter.fullName = { $regex: search, $options: "i" }; // Assuming fullName instead of name based on User model
+            filter.fullName = { $regex: search, $options: "i" };
         }
 
         if (status && status !== "all") {
             if (status === "active") {
-                // Include users with status "active" OR missing status (legacy users)
-                filter.$or = [
-                    { status: "active" },
-                    { status: { $exists: false } }
-                ];
+                filter.$or = [{ status: "active" }, { status: { $exists: false } }];
             } else {
                 filter.status = status;
             }
         }
 
         const users = await User.find(filter)
+            .select("fullName email phone avatar status createdAt postsCount") // Only required fields
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(parseInt(limit));
@@ -563,27 +566,52 @@ export const getUserStats = async (req, res) => {
 // 3. GET SINGLE USER (View Action)
 export const getSingleUser = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(req.params.id)
+            .select("fullName email phone avatar status createdAt location bio");
 
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // Get submission counts
-        const totalSubmissions = await News.countDocuments({
-            author: user._id, // Match by author ID
-            $or: [{ isUserPost: true }, { source: { $in: ["User", "user", "Android", "iOS"] } }]
-        });
+        // Get submission counts and actual posts for the list
+        const totalSubmissions = await News.countDocuments({ author: user._id });
+        const approvedSubmissions = await News.countDocuments({ author: user._id, status: "approved" });
 
-        // You can add more detailed counts if needed (approved, pending, etc.)
+        const submissions = await News.find({ author: user._id })
+            .select("title.en publishedAt status")
+            .sort({ createdAt: -1 })
+            .limit(10);
 
-        res.json({
+        console.log("👤 Fetching Single User Detail for ID:", req.params.id);
+
+        const responseData = {
             success: true,
+            DEBUG_TAG: "VERSION_2_FIXED",
             user: {
-                ...user.toObject(),
-                totalSubmissions
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone,
+                avatar: user.avatar,
+                status: user.status || "active",
+                joinedAt: user.createdAt,
+                location: user.location,
+                bio: user.bio,
+                stats: {
+                    totalSubmissions,
+                    approvedSubmissions
+                },
+                submissions: submissions.map(s => ({
+                    _id: s._id,
+                    title: s.title.en,
+                    date: s.publishedAt,
+                    status: s.status
+                }))
             }
-        });
+        };
+
+        console.log("✅ Sending cleaned response for user:", user.fullName);
+        res.json(responseData);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -669,16 +697,21 @@ export const getAdminProfile = async (req, res) => {
 // 2. UPDATE ADMIN PROFILE
 export const updateAdminProfile = async (req, res) => {
     try {
-        const { fullName, email, phone, bio, currentPassword, newPassword } = req.body;
+        // Destructure and handle potential space in field names from Postman/Frontend
+        let { fullName, email, phone, bio, currentPassword, newPassword, changepassword } = req.body;
+
+        // Map space-separated or variation keys if they exist
+        if (req.body["full name"]) fullName = req.body["full name"];
+        if (changepassword) newPassword = changepassword;
         const user = await User.findById(req.user._id);
 
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
         // Update Basic Info
-        if (fullName) user.fullName = fullName;
-        if (email) user.email = email;
-        if (phone) user.phone = phone;
-        if (bio) user.bio = bio; // Ensure 'bio' field exists in User model or strict: false
+        if (fullName) user.fullName = fullName.trim();
+        if (email) user.email = email.toLowerCase().trim();
+        if (phone) user.phone = phone.trim();
+        if (bio) user.bio = bio.trim();
 
         // Update Password if provided
         if (currentPassword && newPassword) {

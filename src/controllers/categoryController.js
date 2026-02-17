@@ -16,26 +16,43 @@ export const getAllCategories = async (req, res) => {
             filter.name = { $regex: search, $options: "i" };
         }
 
-        const categories = await Category.find(filter).sort({ name: 1 });
-
-        // Calculate stats for each category
-        const categoriesWithStats = await Promise.all(categories.map(async (cat) => {
-            // Count articles for this category using the 'slug' or 'name' as key in News
-            // Assuming News model uses 'category' string field equal to slug or ID.
-            // Let's assume News.category stores the SLUG (e.g. 'politics') as per current app design.
-
-            const count = await News.countDocuments({
-                category: { $regex: new RegExp(`^${cat.slug}$`, 'i') }
-            });
-
-            return {
-                ...cat.toObject(),
-                articleCount: count
-            };
-        }));
+        // Using Aggregation for much better performance
+        const categoriesWithStats = await Category.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: "news",
+                    let: { categorySlug: "$slug" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$category", "$$categorySlug"] },
+                                        { $regexMatch: { input: { $toString: "$category" }, regex: { $concat: ["^", "$$categorySlug", "$"] }, options: "i" } }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: "newsItems"
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    slug: 1,
+                    description: 1,
+                    articleCount: { $size: "$newsItems" },
+                    createdAt: 1,
+                    updatedAt: 1
+                }
+            },
+            { $sort: { name: 1 } }
+        ]);
 
         // Overall Stats
-        const totalCategories = categories.length;
+        const totalCategories = categoriesWithStats.length;
         const totalArticles = categoriesWithStats.reduce((sum, cat) => sum + cat.articleCount, 0);
         const avgPerCategory = totalCategories > 0 ? Math.round(totalArticles / totalCategories) : 0;
 
@@ -49,6 +66,7 @@ export const getAllCategories = async (req, res) => {
             categories: categoriesWithStats
         });
     } catch (error) {
+        console.error("GET Categories Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -65,9 +83,20 @@ export const createCategory = async (req, res) => {
         // Normalize slug
         const cleanSlug = slug.toLowerCase().trim().replace(/^\//, ''); // Remove leading slash if user added it
 
-        const existing = await Category.findOne({ $or: [{ name }, { slug: cleanSlug }] });
+        // Improved collision check: case-insensitive for slug, exact for name
+        const existing = await Category.findOne({
+            $or: [
+                { name: { $regex: new RegExp(`^${name}$`, 'i') } },
+                { slug: cleanSlug }
+            ]
+        });
+
         if (existing) {
-            return res.status(400).json({ success: false, message: "Category name or slug already exists" });
+            const isNameMatch = existing.name.toLowerCase() === name.toLowerCase();
+            return res.status(400).json({
+                success: false,
+                message: isNameMatch ? `Category name "${name}" already exists` : `Slug "${cleanSlug}" is already taken`
+            });
         }
 
         const category = await Category.create({
@@ -78,6 +107,11 @@ export const createCategory = async (req, res) => {
 
         res.status(201).json({ success: true, message: "Category created successfully", category });
     } catch (error) {
+        console.error("CREATE Category Error:", error);
+        // Handle duplicate key error from MongoDB
+        if (error.code === 11000) {
+            return res.status(400).json({ success: false, message: "A category with this name or slug already exists in the database." });
+        }
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -101,9 +135,10 @@ export const updateCategory = async (req, res) => {
 
         res.json({ success: true, message: "Category updated successfully", category });
     } catch (error) {
+        console.error("UPDATE Category Error:", error);
         // Handle duplicate key error
         if (error.code === 11000) {
-            return res.status(400).json({ success: false, message: "Category name or slug already exists" });
+            return res.status(400).json({ success: false, message: "This name or slug is already being used by another category." });
         }
         res.status(500).json({ success: false, message: error.message });
     }
@@ -112,13 +147,24 @@ export const updateCategory = async (req, res) => {
 // 4. DELETE CATEGORY
 export const deleteCategory = async (req, res) => {
     try {
-        const category = await Category.findByIdAndDelete(req.params.id);
+        // Check if category has news articles before deleting
+        const category = await Category.findById(req.params.id);
         if (!category) {
             return res.status(404).json({ success: false, message: "Category not found" });
         }
 
+        const hasNews = await News.countDocuments({ category: category.slug });
+        if (hasNews > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot delete category. It contains articles. Please move or delete the articles first."
+            });
+        }
+
+        await Category.findByIdAndDelete(req.params.id);
         res.json({ success: true, message: "Category deleted successfully" });
     } catch (error) {
+        console.error("DELETE Category Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
