@@ -160,3 +160,63 @@ export const deleteNotification = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+// 6. GET USER NOTIFICATIONS (For Mobile App)
+export const getUserNotifications = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        // Fetch notifications addressed to 'all' or specifically to this user
+        const notifications = await Notification.find({
+            $or: [
+                { recipient: "all" },
+                { recipient: userId.toString() }
+            ]
+        }).sort({ createdAt: -1 }).limit(20);
+
+        // Map notifications to include a perceived 'isRead' status for broadcasts
+        const results = notifications.map(notif => {
+            const isRead = notif.recipient === "all"
+                ? notif.readBy.includes(userId)
+                : notif.isRead;
+
+            return {
+                ...notif.toObject(),
+                isRead
+            };
+        });
+
+        res.json({
+            success: true,
+            notifications: results
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 7. USER MARK AS READ (For Broadcasts)
+export const markAsReadForUser = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const notification = await Notification.findById(req.params.id);
+
+        if (!notification) {
+            return res.status(404).json({ success: false, message: "Notification not found" });
+        }
+
+        if (notification.recipient === "all") {
+            // Check if user already in list
+            if (!notification.readBy.includes(userId)) {
+                notification.readBy.push(userId);
+                await notification.save();
+            }
+        } else if (notification.recipient === userId.toString()) {
+            notification.isRead = true;
+            await notification.save();
+        }
+
+        res.json({ success: true, message: "Notification marked as read" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

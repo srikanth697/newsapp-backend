@@ -8,10 +8,16 @@ import {
     getNotificationStats,
     sendNotification,
     markNotificationRead,
+    getUserNotifications,
+    markAsReadForUser,
     deleteNotification
 } from "../controllers/notificationController.js";
 
 const router = express.Router();
+
+// 📱 User Notifications (Mobile App)
+router.get("/user", protect, getUserNotifications);
+router.put("/:id/user-read", protect, markAsReadForUser);
 
 // 🔔 Admin Notifications (Dashboard List + Stats)
 router.get("/unread", protect, adminOnly, getUnreadNotifications);
