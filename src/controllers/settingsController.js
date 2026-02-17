@@ -66,6 +66,7 @@ export const getUserSettings = async (req, res) => {
             success: true,
             settings: {
                 darkMode: user.darkMode,
+                language: user.language,
                 twoFactorEnabled: user.twoFactorEnabled,
                 notificationPreferences: user.notificationPreferences
             }
@@ -80,6 +81,7 @@ export const saveAllSettings = async (req, res) => {
     try {
         const {
             darkMode,
+            language,
             twoFactorEnabled,
             emailNotifications,
             pushNotifications,
@@ -92,6 +94,7 @@ export const saveAllSettings = async (req, res) => {
 
         // Update User Preferences
         if (darkMode !== undefined) user.darkMode = darkMode;
+        if (language !== undefined) user.language = language;
         if (twoFactorEnabled !== undefined) user.twoFactorEnabled = twoFactorEnabled;
 
         if (user.notificationPreferences) {
@@ -110,6 +113,7 @@ export const saveAllSettings = async (req, res) => {
             if (termsAndConditions !== undefined) sysSettings.termsAndConditions = termsAndConditions;
 
             await sysSettings.save();
+            console.log("✅ Global System Settings Updated by Admin");
         }
 
         res.json({
@@ -117,6 +121,7 @@ export const saveAllSettings = async (req, res) => {
             message: "All settings saved successfully",
             userSettings: {
                 darkMode: user.darkMode,
+                language: user.language,
                 twoFactorEnabled: user.twoFactorEnabled,
                 notificationPreferences: user.notificationPreferences
             }
