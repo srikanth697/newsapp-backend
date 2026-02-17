@@ -43,6 +43,26 @@ export const getAllNotifications = async (req, res) => {
     }
 };
 
+// 1b. GET UNREAD NOTIFICATIONS (Convenience)
+export const getUnreadNotifications = async (req, res) => {
+    try {
+        const { limit = 5 } = req.query;
+        const notifications = await Notification.find({ recipient: "admin", isRead: false })
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit));
+
+        const count = await Notification.countDocuments({ recipient: "admin", isRead: false });
+
+        res.json({
+            success: true,
+            count,
+            notifications
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // 2. GET NOTIFICATION STATS (Dashboard Cards)
 export const getNotificationStats = async (req, res) => {
     try {

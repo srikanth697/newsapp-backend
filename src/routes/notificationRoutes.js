@@ -4,6 +4,7 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import {
     getAllNotifications,
+    getUnreadNotifications,
     getNotificationStats,
     sendNotification,
     markNotificationRead,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 // 🔔 Admin Notifications (Dashboard List + Stats)
 router.get("/", protect, adminOnly, getAllNotifications);
+router.get("/unread", protect, adminOnly, getUnreadNotifications);
 router.get("/stats", protect, adminOnly, getNotificationStats);
 
 import multer from "multer";
