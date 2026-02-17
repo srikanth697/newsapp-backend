@@ -10,6 +10,7 @@ import {
     markNotificationRead,
     getUserNotifications,
     markAsReadForUser,
+    getUserUnreadCount,
     deleteNotification
 } from "../controllers/notificationController.js";
 
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // 📱 User Notifications (Mobile App)
 router.get("/user", protect, getUserNotifications);
+router.get("/user/unread-count", protect, getUserUnreadCount);
 router.put("/:id/user-read", protect, markAsReadForUser);
 
 // 🔔 Admin Notifications (Dashboard List + Stats)

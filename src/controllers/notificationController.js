@@ -220,3 +220,29 @@ export const markAsReadForUser = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// 8. GET USER UNREAD COUNT (For Notification dot)
+export const getUserUnreadCount = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        // 1. Count specific unread notifications for this user
+        const specificUnread = await Notification.countDocuments({
+            recipient: userId.toString(),
+            isRead: false
+        });
+
+        // 2. Count unread broadcast notifications
+        const broadcastUnread = await Notification.countDocuments({
+            recipient: "all",
+            readBy: { $ne: userId } // User is NOT in the readBy array
+        });
+
+        res.json({
+            success: true,
+            unreadCount: specificUnread + broadcastUnread
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
