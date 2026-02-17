@@ -91,7 +91,13 @@ const userSchema = new mongoose.Schema(
             breakingNews: { type: Boolean, default: true },
             trendingNews: { type: Boolean, default: false },
             quizReminders: { type: Boolean, default: true },
-            postUpdates: { type: Boolean, default: true }
+            postUpdates: { type: Boolean, default: true },
+            emailNotifications: { type: Boolean, default: true }, // Added for Settings UI
+            pushNotifications: { type: Boolean, default: true }   // Added for Settings UI
+        },
+        twoFactorEnabled: {
+            type: Boolean,
+            default: false
         },
         quietHours: {
             from: { type: String, default: "10:00 PM" },

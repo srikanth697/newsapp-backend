@@ -11,6 +11,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -30,6 +31,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/settings", settingsRoutes);
 
 
 
