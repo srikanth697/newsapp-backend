@@ -575,18 +575,15 @@ export const getSingleUser = async (req, res) => {
 
         // Get submission counts and actual posts for the list
         const totalSubmissions = await News.countDocuments({ author: user._id });
-        const approvedSubmissions = await News.countDocuments({ author: user._id, status: "approved" });
+        const approvedSubmissions = await News.countDocuments({ author: user._id, status: "published" });
 
         const submissions = await News.find({ author: user._id })
             .select("title.en publishedAt status")
             .sort({ createdAt: -1 })
             .limit(10);
 
-        console.log("👤 Fetching Single User Detail for ID:", req.params.id);
-
         const responseData = {
             success: true,
-            DEBUG_TAG: "VERSION_2_FIXED",
             user: {
                 _id: user._id,
                 fullName: user.fullName,
@@ -610,7 +607,6 @@ export const getSingleUser = async (req, res) => {
             }
         };
 
-        console.log("✅ Sending cleaned response for user:", user.fullName);
         res.json(responseData);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
