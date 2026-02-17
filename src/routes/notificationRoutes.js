@@ -14,9 +14,9 @@ import {
 const router = express.Router();
 
 // 🔔 Admin Notifications (Dashboard List + Stats)
-router.get("/", protect, adminOnly, getAllNotifications);
 router.get("/unread", protect, adminOnly, getUnreadNotifications);
 router.get("/stats", protect, adminOnly, getNotificationStats);
+router.get("/", protect, adminOnly, getAllNotifications);
 
 import multer from "multer";
 

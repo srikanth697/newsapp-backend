@@ -41,6 +41,7 @@ app.use("/unified", unifiedFeedRoutes);
 app.use("/language", languageRoutes);
 app.use("/news", newsRoutes);
 app.use("/quiz", quizRoutes);
+app.use("/notifications", notificationRoutes);
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware
