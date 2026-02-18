@@ -16,7 +16,7 @@ const router = express.Router();
 
 // 🔐 Admin Routes (Full CRUD)
 router.post("/create", protect, adminOnly, createQuiz);
-router.get("/all", protect, getAllQuizzes); // Admins see draft/archived, Users see published
+router.get("/all", getAllQuizzes); // Public (Controller will filter for Guests vs Admins)
 router.put("/:id", protect, adminOnly, updateQuiz);
 router.delete("/:id", protect, adminOnly, deleteQuiz);
 router.get("/attempts/:id", protect, adminOnly, getQuizAttempts); // See who took a specific quiz
