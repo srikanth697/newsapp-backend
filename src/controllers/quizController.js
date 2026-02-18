@@ -29,7 +29,7 @@ export const createQuiz = async (req, res) => {
     }
 };
 
-// 2. GET ALL QUIZZES (Admin View: List All, User View: List Published)
+// 2. GET ALL QUIZZES (Admin View: List All, User/Guest View: List Published)
 export const getAllQuizzes = async (req, res) => {
     try {
         const { category, difficulty, search, status } = req.query;
@@ -62,12 +62,12 @@ export const getQuizById = async (req, res) => {
         const quiz = await Quiz.findById(req.params.id);
         if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
 
-        // If user is admin, showing full details including answers
+        // If admin, showing full details including answers
         if (req.user && req.user.role === "admin") {
             return res.json({ success: true, quiz });
         }
 
-        // For users, hide answers until they submit
+        // For users/guests, hide answers until they submit
         const quizForUser = quiz.toObject();
         quizForUser.questions.forEach(q => {
             delete q.correctOptionIndex;
@@ -93,44 +93,49 @@ export const submitQuiz = async (req, res) => {
         let correctCount = 0;
         const totalQuestions = quiz.questions.length;
 
-        // Detailed results for feedback
-        const responses = quiz.questions.map((q, index) => {
+        // Results with explanations for feedback
+        const results = quiz.questions.map((q, index) => {
             const isCorrect = q.correctOptionIndex === answers[index];
             if (isCorrect) correctCount++;
+
             return {
                 questionId: q._id,
+                questionTitle: q.questionText,
                 selectedOptionIndex: answers[index],
-                isCorrect
+                isCorrect,
+                correctOptionIndex: q.correctOptionIndex, // Always show right answer on submit
+                explanation: q.explanation // Show why it was correct/incorrect
             };
         });
 
         const score = (correctCount / totalQuestions) * 100;
 
-        // Save Attempt
-        const attempt = await UserQuizAttempt.create({
-            user: req.user._id,
-            quiz: quiz._id,
-            score,
-            totalQuestions,
-            correctAnswers: correctCount,
-            responses
-        });
-
-        // Results with explanations for frontend display
-        const results = quiz.questions.map((q, index) => ({
-            questionId: q._id,
-            correct: q.correctOptionIndex === answers[index],
-            correctOption: q.correctOptionIndex,
-            explanation: q.explanation
-        }));
+        // Track attempt only if user is logged in
+        let attemptId = null;
+        if (req.user) {
+            const attempt = await UserQuizAttempt.create({
+                user: req.user._id,
+                quiz: quiz._id,
+                score,
+                totalQuestions,
+                correctAnswers: correctCount,
+                responses: results.map(r => ({
+                    questionId: r.questionId,
+                    selectedOptionIndex: r.selectedOptionIndex,
+                    isCorrect: r.isCorrect
+                }))
+            });
+            attemptId = attempt._id;
+        }
 
         res.json({
             success: true,
             score,
             correctCount,
             totalQuestions,
-            results,
-            attemptId: attempt._id
+            results, // Now contains correct options and explanations for every question
+            attemptId,
+            message: req.user ? "Result saved to your history" : "Guest result (not saved)"
         });
 
     } catch (error) {

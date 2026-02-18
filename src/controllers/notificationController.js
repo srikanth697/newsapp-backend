@@ -163,21 +163,32 @@ export const deleteNotification = async (req, res) => {
 // 6. GET USER NOTIFICATIONS (For Mobile App)
 export const getUserNotifications = async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.userId; // Defined if 'protect' was used (optional now)
 
-        // Fetch notifications addressed to 'all' or specifically to this user
-        const notifications = await Notification.find({
-            $or: [
-                { recipient: "all" },
-                { recipient: userId.toString() }
-            ]
-        }).sort({ createdAt: -1 }).limit(20);
+        // If no user is logged in, only fetch 'all' recipient notifications
+        let filter = { recipient: "all" };
+        if (userId) {
+            filter = {
+                $or: [
+                    { recipient: "all" },
+                    { recipient: userId.toString() }
+                ]
+            };
+        }
+
+        const notifications = await Notification.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(20);
 
         // Map notifications to include a perceived 'isRead' status for broadcasts
         const results = notifications.map(notif => {
-            const isRead = notif.recipient === "all"
-                ? notif.readBy.includes(userId)
-                : notif.isRead;
+            let isRead = false;
+
+            if (userId) {
+                isRead = notif.recipient === "all"
+                    ? notif.readBy.includes(userId)
+                    : notif.isRead;
+            }
 
             return {
                 ...notif.toObject(),

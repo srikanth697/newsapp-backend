@@ -17,7 +17,7 @@ import {
 const router = express.Router();
 
 // 📱 User Notifications (Mobile App)
-router.get("/user", protect, getUserNotifications);
+router.get("/user", getUserNotifications); // Public
 router.get("/user/unread-count", protect, getUserUnreadCount);
 router.put("/:id/user-read", protect, markAsReadForUser);
 

@@ -22,9 +22,9 @@ router.delete("/:id", protect, adminOnly, deleteQuiz);
 router.get("/attempts/:id", protect, adminOnly, getQuizAttempts); // See who took a specific quiz
 
 // 👥 User Routes
-router.get("/", protect, getAllQuizzes); // Main list for app
-router.get("/history", protect, getUserQuizHistory); // My quiz history
-router.get("/:id", protect, getQuizById); // Take a Quiz (hide answers) -- FIXED: was getAllQuizzes
-router.post("/:id/submit", protect, submitQuiz); // Get results
+router.get("/", getAllQuizzes); // Public
+router.get("/history", protect, getUserQuizHistory); // My quiz history (login required)
+router.get("/:id", getQuizById); // Public
+router.post("/:id/submit", submitQuiz); // Public
 
 export default router;
