@@ -16,25 +16,13 @@ export const getAllCategories = async (req, res) => {
             filter.name = { $regex: search, $options: "i" };
         }
 
-        // Using Aggregation for much better performance
         const categoriesWithStats = await Category.aggregate([
             { $match: filter },
             {
                 $lookup: {
                     from: "news",
-                    let: { categorySlug: "$slug" },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $or: [
-                                        { $eq: ["$category", "$$categorySlug"] },
-                                        { $regexMatch: { input: { $toString: "$category" }, regex: { $concat: ["^", "$$categorySlug", "$"] }, options: "i" } }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
+                    localField: "slug",
+                    foreignField: "category",
                     as: "newsItems"
                 }
             },
