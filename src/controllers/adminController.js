@@ -156,7 +156,13 @@ export const getDashboardStats = async (req, res) => {
         const publishedUserNews = await News.countDocuments({ isUserPost: true, status: "published" });
         const feedNewsCount = await FeedNews.countDocuments();
 
-        const userSubmitted = await News.countDocuments({ status: "pending" }); // This maps to "USER NEWS" card
+        // Total user submissions (all statuses)
+        const userSubmitted = await News.countDocuments({
+            $or: [
+                { isUserPost: true },
+                { source: { $in: ["User", "user", "Android", "iOS"] } }
+            ]
+        });
         const totalUsers = await User.countDocuments({ role: "user" });
         const totalQuizzes = await Quiz.countDocuments();
         const fakeNews = await News.countDocuments({ status: "fake" });
