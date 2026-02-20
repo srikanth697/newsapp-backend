@@ -148,21 +148,21 @@ router.get("/", async (req, res) => {
                 _id: item._id,
                 title: getField(item.title),
                 description: getField(item.description),
-                summary: getField(item.description),
-                content: getField(item.content) || getField(item.description),
-                image: img || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // Fallback
+                summary: getField(item.description), // AI Summary is stored in description.en
+                content: getField(item.content) || getField(item.description), // AI Long Content
+                image: img || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default,
                 url: item.sourceUrl,
                 sourceUrl: item.sourceUrl,
-                source: "NewsAPI",
+                source: item.source || "AI News",
                 category: item.category,
-                country: item.country,
+                country: item.country || "IN",
                 publishedAt: item.publishedAt,
                 likes: item.likes || 0,
                 shares: item.shares || 0,
                 savedCount: item.savedCount || 0,
                 isUserPost: item.isUserPost || false,
                 author: item.author,
-                score: 0,
+                score: 100, // Give high priority to AI rewritten news
             };
         });
 
@@ -171,8 +171,8 @@ router.get("/", async (req, res) => {
             title: item.title,
             description: item.summary,
             summary: item.summary,
-            content: item.content,
-            image: item.image || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // Fallback
+            content: item.content || item.summary,
+            image: item.image || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default,
             url: item.url,
             sourceUrl: item.url,
             source: item.source,
@@ -187,29 +187,38 @@ router.get("/", async (req, res) => {
             score: item.score || 0,
         }));
 
-        // Merge and deduplicate by URL
+        // Merge and deduplicate by Cleaned URL
         const merged = [...normalizedOldNews, ...normalizedFeedNews];
-
-        // Remove duplicates by URL
         const uniqueByUrl = {};
+
+        const cleanUrl = (u) => {
+            if (!u) return "";
+            try {
+                const urlObj = new URL(u);
+                return urlObj.origin + urlObj.pathname; // Strip query params like ?utm_source
+            } catch (e) {
+                return u.split("?")[0]; // Fallback for invalid URLs
+            }
+        };
+
         merged.forEach((article) => {
-            const url = article.url || article.sourceUrl;
-            if (url && !uniqueByUrl[url]) {
-                uniqueByUrl[url] = article;
-            } else if (!url) {
-                // If no URL, keep it (user posts might not have URLs)
+            const rawUrl = article.url || article.sourceUrl;
+            const url = cleanUrl(rawUrl);
+
+            if (url) {
+                // If it already exists, only overwrite if this one has content/is AI (higher score)
+                if (!uniqueByUrl[url] || article.score > uniqueByUrl[url].score) {
+                    uniqueByUrl[url] = article;
+                }
+            } else {
                 uniqueByUrl[article._id] = article;
             }
         });
 
-        // Convert back to array and sort by score, then date
+        // Convert back to array and sort by DATE (Latest first)
         let unified = Object.values(uniqueByUrl);
         unified.sort((a, b) => {
-            // Primarily sort by score
-            if (b.score !== a.score) {
-                return b.score - a.score;
-            }
-            // Secondarily sort by date
+            // Primarily sort by date for home screen tabs
             return new Date(b.publishedAt) - new Date(a.publishedAt);
         });
 
