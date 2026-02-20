@@ -1,6 +1,8 @@
 
 import Quiz from "../models/Quiz.js";
+import News from "../models/News.js";
 import UserQuizAttempt from "../models/UserQuizAttempt.js";
+import { generateQuizFromContent } from "../services/aiService.js";
 
 // ==========================================
 // 🧩 QUIZ MANAGEMENT
@@ -288,6 +290,153 @@ export const toggleQuizStatus = async (req, res) => {
             message: `Quiz is now ${quiz.status} ✅`,
             status: quiz.status
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🔧 CATEGORY MAP — Maps news categories to quiz enum values
+ */
+const mapToQuizCategory = (cat = "") => {
+    const c = cat.toLowerCase();
+    if (c.includes("tech") || c.includes("science")) return "technology";
+    if (c.includes("sport")) return "sports";
+    if (c.includes("entert") || c.includes("movie") || c.includes("celeb")) return "entertainment";
+    if (c.includes("busin") || c.includes("econ") || c.includes("financ")) return "general";
+    if (c.includes("world") || c.includes("intern")) return "general";
+    if (c.includes("histor")) return "history";
+    if (c.includes("geo")) return "geography";
+    if (c.includes("scien")) return "science";
+    return "general";
+};
+
+// 10. GENERATE QUIZ FROM A SPECIFIC NEWS ARTICLE (Admin)
+// POST /api/quiz/generate/:newsId
+export const generateQuizFromNews = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+
+        const news = await News.findById(newsId);
+        if (!news) return res.status(404).json({ success: false, message: "News article not found" });
+
+        const title = news.title?.en || news.title || "News Quiz";
+        const content = news.content?.en || news.content || news.description?.en || "";
+
+        if (!content || content.length < 100) {
+            return res.status(400).json({ success: false, message: "News content too short to generate a quiz" });
+        }
+
+        // Check if quiz already exists for this news
+        const existing = await Quiz.findOne({ newsId });
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                message: "A quiz already exists for this article",
+                quiz: existing
+            });
+        }
+
+        console.log(`🧩 Manually generating quiz for: "${title}"`);
+        const quizData = await generateQuizFromContent(content, title);
+
+        if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+            return res.status(500).json({ success: false, message: "AI failed to generate quiz questions" });
+        }
+
+        const quiz = await Quiz.create({
+            title: quizData.title || title,
+            description: quizData.description || "Test your knowledge on this topic.",
+            questions: quizData.questions,
+            category: mapToQuizCategory(news.category?.toString()),
+            newsId: news._id,
+            sourceType: "ai_news",
+            status: "published",
+            timerMinutes: 3
+        });
+
+        res.status(201).json({
+            success: true,
+            message: `Quiz created with ${quiz.questions.length} questions ✅`,
+            quiz
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 11. BACKFILL QUIZZES FOR ALL EXISTING APPROVED NEWS (Admin)
+// POST /api/quiz/backfill
+// This is a one-time operation to generate quizzes for old news articles
+export const backfillQuizzesFromNews = async (req, res) => {
+    try {
+        const { limit = 5 } = req.body; // Safety: default to 5 at a time
+
+        // Find news articles (both 'approved' user posts AND 'scheduled' AI articles) that don't have a quiz yet
+        const existingQuizNewsIds = (await Quiz.find({ newsId: { $ne: null } }).distinct("newsId")).map(String);
+
+        const newsArticles = await News.find({
+            status: { $in: ["approved", "scheduled"] }, // AI news = scheduled, User news = approved
+            _id: { $nin: existingQuizNewsIds }
+        })
+            .sort({ publishedAt: -1 })
+            .limit(parseInt(limit));
+
+        if (newsArticles.length === 0) {
+            return res.json({ success: true, message: "All news articles already have quizzes! ✅", generated: 0 });
+        }
+
+        console.log(`🧩 Backfilling quizzes for ${newsArticles.length} articles...`);
+
+        const results = [];
+        for (const news of newsArticles) {
+            try {
+                const title = typeof news.title === "object" ? (news.title?.en || "News Quiz") : (news.title || "News Quiz");
+                const content = typeof news.content === "object"
+                    ? (news.content?.en || news.description?.en || "")
+                    : (news.content || news.description || "");
+
+                if (!content || content.length < 100) {
+                    results.push({ title, status: "skipped", reason: "content too short" });
+                    continue;
+                }
+
+                const quizData = await generateQuizFromContent(content, title);
+                if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+                    results.push({ title, status: "failed", reason: "AI returned no questions" });
+                    continue;
+                }
+
+                await Quiz.create({
+                    title: quizData.title || title,
+                    description: quizData.description || "Test your knowledge.",
+                    questions: quizData.questions,
+                    category: mapToQuizCategory(news.category?.toString()),
+                    newsId: news._id,
+                    sourceType: "ai_news",
+                    status: "published",
+                    timerMinutes: 3
+                });
+
+                results.push({ title, status: "created", questions: quizData.questions.length });
+
+                // Small delay to avoid Gemini rate limits
+                await new Promise(r => setTimeout(r, 2000));
+
+            } catch (err) {
+                results.push({ title: news.title?.en, status: "error", reason: err.message });
+            }
+        }
+
+        const created = results.filter(r => r.status === "created").length;
+        res.json({
+            success: true,
+            message: `Backfill complete: ${created} quizzes created out of ${newsArticles.length} articles`,
+            generated: created,
+            results
+        });
+
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

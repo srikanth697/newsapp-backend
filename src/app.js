@@ -63,6 +63,33 @@ app.get("/api/test-quiz-ai", async (req, res) => {
     res.json({ success: !!quiz, quiz });
 });
 
+// 🔍 DEBUG ROUTE: Check what's in the Quiz collection
+app.get("/api/quiz-debug", async (req, res) => {
+    try {
+        const Quiz = (await import("./models/Quiz.js")).default;
+        const News = (await import("./models/News.js")).default;
+
+        const [totalQuizzes, publishedQuizzes, aiQuizzes, recentQuizzes, newsCounts] = await Promise.all([
+            Quiz.countDocuments(),
+            Quiz.countDocuments({ status: "published" }),
+            Quiz.countDocuments({ sourceType: "ai_news" }),
+            Quiz.find().sort({ createdAt: -1 }).limit(5).select("title status sourceType category createdAt newsId"),
+            News.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+        ]);
+
+        res.json({
+            quizSummary: { totalQuizzes, publishedQuizzes, aiQuizzes },
+            recentQuizzes,
+            newsStatusCounts: newsCounts,
+            message: publishedQuizzes === 0
+                ? "⚠️ NO published quizzes found! Run POST /api/quiz/backfill with admin token to generate them."
+                : `✅ ${publishedQuizzes} published quizzes ready.`
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware

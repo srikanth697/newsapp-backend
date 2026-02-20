@@ -10,31 +10,37 @@ import {
     submitQuiz,
     getQuizAttempts,
     getUserQuizHistory,
-    toggleQuizStatus
+    toggleQuizStatus,
+    generateQuizFromNews,
+    backfillQuizzesFromNews
 } from "../controllers/quizController.js";
 
 const router = express.Router();
 
 // ==========================================
-// 🔐 ADMIN ROUTES
+// ⚠️  STATIC ROUTES MUST COME BEFORE /:id
 // ==========================================
-router.post("/create", protect, adminOnly, createQuiz);          // Create quiz
-router.put("/:id", protect, adminOnly, updateQuiz);              // Edit quiz
-router.delete("/:id", protect, adminOnly, deleteQuiz);           // Delete quiz
-router.patch("/:id/toggle", protect, adminOnly, toggleQuizStatus); // Publish / Unpublish toggle
-router.get("/attempts/:id", protect, adminOnly, getQuizAttempts); // Who attempted quiz :id
 
-// ==========================================
-// 👥 PUBLIC ROUTES (no auth required)
-// ==========================================
-router.get("/all", getAllQuizzes);     // GET /api/quiz/all?category=sports&difficulty=easy&page=1&limit=10
-router.get("/", getAllQuizzes);        // GET /api/quiz (same as /all)
-router.get("/:id", getQuizById);      // GET /api/quiz/:id  (answers hidden)
-router.post("/:id/submit", submitQuiz); // POST /api/quiz/:id/submit  { "answers": [0, 2, 1, 3, 2] }
+// 🔐 ADMIN — CRUD
+router.post("/create", protect, adminOnly, createQuiz);
+router.get("/all", getAllQuizzes);                                    // GET /api/quiz/all
+router.get("/attempts/:id", protect, adminOnly, getQuizAttempts);    // GET /api/quiz/attempts/:id
 
-// ==========================================
-// 🔒 USER ROUTES (login required)
-// ==========================================
-router.get("/history/me", protect, getUserQuizHistory); // My quiz history
+// 🔐 ADMIN — AI Quiz Tools
+router.post("/generate/:newsId", protect, adminOnly, generateQuizFromNews);  // Generate quiz from a specific news article
+router.post("/backfill", protect, adminOnly, backfillQuizzesFromNews);       // Generate quizzes for all recent approved news
+
+// 🔒 USER — must come before /:id
+router.get("/history/me", protect, getUserQuizHistory);              // GET /api/quiz/history/me
+
+// 👥 PUBLIC — general listing
+router.get("/", getAllQuizzes);                                       // GET /api/quiz
+
+// ⚠️  WILDCARD /:id routes MUST be LAST
+router.get("/:id", getQuizById);                                     // GET /api/quiz/:id
+router.post("/:id/submit", submitQuiz);                              // POST /api/quiz/:id/submit
+router.put("/:id", protect, adminOnly, updateQuiz);                  // PUT /api/quiz/:id
+router.delete("/:id", protect, adminOnly, deleteQuiz);               // DELETE /api/quiz/:id
+router.patch("/:id/toggle", protect, adminOnly, toggleQuizStatus);   // PATCH /api/quiz/:id/toggle
 
 export default router;
