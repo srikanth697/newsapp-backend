@@ -141,15 +141,37 @@ router.get("/", async (req, res) => {
 
         const [oldNews, feedNews] = await Promise.all([oldNewsPromise, feedNewsPromise]);
 
+        // Helper for relative time
+        const getTimeAgo = (date) => {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + "y ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + "mo ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + "d ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + "h ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + "m ago";
+            return "Just now";
+        };
+
         // Normalize both to same format
         const normalizedOldNews = oldNews.map((item) => {
             const img = item.imageUrl || item.image;
+            const content = getField(item.content) || getField(item.description);
+            const summary = getField(item.description);
+
             return {
                 _id: item._id,
                 title: getField(item.title),
-                description: getField(item.description),
-                summary: getField(item.description), // AI Summary is stored in description.en
-                content: getField(item.content) || getField(item.description), // AI Long Content
+                description: summary,
+                summary: summary,
+                content: content,
+                imageUrl: img || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // MATCH FLUTTER
+                fullContent: content, // MATCH FLUTTER
+                author: item.source || "AI News", // MATCH FLUTTER
                 image: img || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default,
                 url: item.sourceUrl,
                 sourceUrl: item.sourceUrl,
@@ -157,12 +179,13 @@ router.get("/", async (req, res) => {
                 category: item.category,
                 country: item.country || "IN",
                 publishedAt: item.publishedAt,
+                timeAgo: getTimeAgo(item.publishedAt), // MATCH FLUTTER
                 likes: item.likes || 0,
                 shares: item.shares || 0,
                 savedCount: item.savedCount || 0,
                 isUserPost: item.isUserPost || false,
-                author: item.author,
-                score: 100, // Give high priority to AI rewritten news
+                authorId: item.author,
+                score: 100,
             };
         });
 
@@ -172,6 +195,9 @@ router.get("/", async (req, res) => {
             description: item.summary,
             summary: item.summary,
             content: item.content || item.summary,
+            imageUrl: item.image || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default, // MATCH FLUTTER
+            fullContent: item.content || item.summary, // MATCH FLUTTER
+            author: item.source, // MATCH FLUTTER
             image: item.image || FALLBACK_IMAGES[item.category] || FALLBACK_IMAGES.default,
             url: item.url,
             sourceUrl: item.url,
@@ -179,11 +205,12 @@ router.get("/", async (req, res) => {
             category: item.category,
             country: "GLOBAL",
             publishedAt: item.publishedAt,
+            timeAgo: getTimeAgo(item.publishedAt), // MATCH FLUTTER
             likes: item.likes || 0,
             shares: item.shares || 0,
             savedCount: item.savedCount || 0,
             isUserPost: false,
-            author: null,
+            authorId: null,
             score: item.score || 0,
         }));
 

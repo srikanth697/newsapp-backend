@@ -47,25 +47,28 @@ export const rewriteWithAI = async (text, originalTitle = "") => {
         const trimmed = text.substring(0, 6000);
 
         const prompt = `
-        Rewrite and SIGNIFICANTLY EXPAND this news article into a comprehensive, professional, and SEO-friendly JSON format.
-        
+        You are a professional senior news editor.
+        Rewrite the following article into a fully detailed news report.
+
         STRICT RULES:
-        1. "title": A catchy, professional title. DO NOT add "AI Rewrite:" or any prefix.
-        2. "summary": A detailed, complete summary (approx. 2-3 paragraphs, around 150-200 words). Must be a full sentence/paragraph, DO NOT truncate with "...".
-        3. "content": A deep, detailed long-form article of MINIMUM 500 WORDS. This is CRITICAL. If the input article is short, you MUST expand it by providing:
-           - Detailed background context and history of the topic.
-           - Professional analysis and multiple perspectives.
-           - Potential future implications and expert predictions.
-           - Relevant facts and figures to flesh out the story.
-           The goal is a high-quality, long-form journalistic piece of AT LEAST 500 words.
-        4. "category": Choose one: [Technology, Politics, Sports, Business, World, Health, Entertainment, General].
-        
-        Return ONLY valid JSON:
+        1. Minimum 500 words. (Target between 500-700 words)
+        2. Must contain 2-3 structured paragraphs.
+        3. Must end with a strong concluding paragraph.
+        4. No bullet points.
+        5. No summary style writing.
+        6. No short description.
+        7. Do not cut content.
+        8. Maintain journalistic tone.
+        9. No "AI generated" wording.
+        10. Return ONLY JSON.
+
+        Return format:
         {
-          "title": "...",
-          "summary": "...",
-          "content": "...",
-          "category": "..."
+          "title": "",
+          "summary": "",      // 2–3 sentence short intro (max 60 words)
+          "content": "",      // Minimum 500 words full article
+          "category": "",     // politics, business, sports, technology, entertainment, world
+          "region": ""        // india or world
         }
 
         Article Content to Expand:

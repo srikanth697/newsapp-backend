@@ -76,8 +76,17 @@ export const generateAINews = async () => {
                 if (isDuplicate) continue;
 
                 // 4. AI Rewrite
-                const aiData = await rewriteWithAI(scraped.content, item.title);
+                let aiData = await rewriteWithAI(scraped.content, item.title);
                 if (!aiData) continue;
+
+                // 🧠 EXTRA SAFETY CHECK: Word Count Validation
+                const wordCount = aiData.content?.split(/\s+/).length || 0;
+                if (wordCount < 400) {
+                    console.log(`⚠️ Too short (${wordCount} words), retrying with stronger emphasis...`);
+                    aiData = await rewriteWithAI(scraped.content + "\n\nCRITICAL: EXPAND THIS TO 500+ WORDS.", item.title);
+                }
+
+                if (!aiData || !aiData.title || !aiData.content) continue;
 
                 // 5. Guaranteed Image priority
                 // 1) og:image (via scraper) 2) Body images 3) NewsAPI image 4) RSS item image 5) Default
@@ -101,12 +110,12 @@ export const generateAINews = async () => {
                     // If not found, try common synonyms
                     if (!foundCategory) {
                         const synonyms = {
-                            "World": ["International", "Global"],
-                            "Politics": ["Government"],
-                            "Business": ["Economy", "Finance"],
-                            "Technology": ["Tech", "Science"],
-                            "Entertainment": ["Movies", "CELEBRITY"],
-                            "General": ["Other", "India"]
+                            "World": ["International", "Global", "World"],
+                            "Politics": ["Government", "Politics"],
+                            "Business": ["Economy", "Finance", "Business"],
+                            "Technology": ["Tech", "Science", "Technology"],
+                            "Entertainment": ["Movies", "CELEBRITY", "Entertainment"],
+                            "General": ["Other", "India", "General"]
                         };
 
                         for (const [key, syns] of Object.entries(synonyms)) {
@@ -133,6 +142,9 @@ export const generateAINews = async () => {
                     publishDate = new Date(nextPublishTime.getTime());
                 }
 
+                // Determine Region/Country
+                const countryCode = aiData.region?.toLowerCase() === "india" ? "IN" : "GLOBAL";
+
                 await News.create({
                     title: { en: aiData.title },
                     description: { en: aiData.summary },
@@ -143,12 +155,13 @@ export const generateAINews = async () => {
                     sourceUrl: item.url,
                     source: item.source || "AI Daily",
                     category: categoryId || aiData.category || "General",
+                    country: countryCode,
                     status: "scheduled", // ALWAYS scheduled for AI
                     publishedAt: publishDate,
                     isUserPost: false
                 });
 
-                console.log(`✅ Scheduled: "${aiData.title}" for ${publishDate.toLocaleString()}`);
+                console.log(`✅ Scheduled: "${aiData.title}" (${aiData.content.split(/\s+/).length} words) for ${publishDate.toLocaleString()}`);
 
                 processedCount++;
                 nextPublishTime = new Date(nextPublishTime.getTime() + staggerMinutes * 60000);
