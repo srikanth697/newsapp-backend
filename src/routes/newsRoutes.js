@@ -8,7 +8,10 @@ import {
    updateNews,
    deleteNews,
    getMyStatus,
-   incrementNewsView
+   incrementNewsView,
+   getPendingNews,
+   approveNews,
+   rejectNews
 } from "../controllers/newsController.js";
 
 const router = express.Router();
@@ -53,9 +56,9 @@ router.post("/:id/save", protect, async (req, res) => {
 });
 
 // 🛡️ ADMIN ROUTES
-router.get("/admin/pending", protect, async (req, res) => res.json([])); // Placeholders for now
-router.post("/admin/approve/:id", protect, async (req, res) => res.json({ success: true }));
-router.post("/admin/reject/:id", protect, async (req, res) => res.json({ success: true }));
+router.get("/admin/pending", protect, getPendingNews);
+router.post("/admin/approve/:id", protect, approveNews);
+router.post("/admin/reject/:id", protect, rejectNews);
 
 // 4. Update News
 

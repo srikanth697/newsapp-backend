@@ -29,7 +29,9 @@ const NewsSchema = new mongoose.Schema({
 
     // Media
     imageUrl: { type: String }, // URL or Base64 string
+    images: { type: [String], default: [] }, // NEW: Multiple images
     videoUrl: { type: String }, // NEW: Video file path
+    videos: { type: [String], default: [] }, // NEW: Multiple videos (YouTube links)
     audioUrl: { type: String }, // NEW: Audio file path
     source: { type: String, default: "Admin" }, // Default "Admin" now
     sourceUrl: String,
@@ -52,12 +54,13 @@ const NewsSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     status: {
         type: String,
-        enum: ["draft", "published", "pending", "approved", "rejected", "fake"], // Updated Enums
-        default: "draft",
+        enum: ["pending", "scheduled", "approved", "rejected"],
+        default: "pending",
         index: true
     },
     rejectionReason: String,
     isUserPost: { type: Boolean, default: false },
+    isAiGeneratedImage: { type: Boolean, default: false },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

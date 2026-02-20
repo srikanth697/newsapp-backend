@@ -12,6 +12,7 @@ import quizRoutes from "./routes/quizRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import { rewriteWithAI } from "./services/aiService.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -44,6 +45,14 @@ app.use("/language", languageRoutes);
 app.use("/news", newsRoutes);
 app.use("/quiz", quizRoutes);
 app.use("/notifications", notificationRoutes);
+
+// 🤖 DEBUG ROUTE: Test Gemini AI
+app.get("/api/test-gemini", async (req, res) => {
+    console.log("🛠️ Testing Gemini API...");
+    const data = await rewriteWithAI("The Indian space agency ISRO has successfully launched a satellite.");
+    res.json({ success: !!data, data });
+});
+
 app.get("/", (req, res) => res.send("News API is running..."));
 
 // Error handling middleware

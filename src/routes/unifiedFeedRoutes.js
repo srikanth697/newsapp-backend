@@ -26,29 +26,77 @@ router.get("/", async (req, res) => {
 
         // Build query for both models
         const query = {};
-        if (category) query.category = category;
+        const feedQuery = {};
 
-        // Date filtering
+        // 🔥 NEW: Tab-based filtering logic
+        const { tab, q, country } = req.query;
         let dateFilter = {};
-        if (yesterday === "true") {
-            const d = new Date();
-            d.setDate(d.getDate() - 1);
-            dateFilter = { publishedAt: { $gte: d } };
-        } else if (req.query.month === "true") {
-            const d = new Date();
-            d.setDate(d.getDate() - 30);
-            dateFilter = { publishedAt: { $gte: d } };
-        } else if (all === "today") {
-            // Only filter by today if explicitly requested
-            const startOfToday = new Date();
-            startOfToday.setHours(0, 0, 0, 0);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        if (tab === "previous") {
+            dateFilter = { publishedAt: { $lt: startOfToday } };
+        } else if (tab === "all") {
             dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else if (tab === "india" || country === "IN") {
+            query.country = "IN";
+            query.$or = [{ country: "IN" }, { category: "india" }];
+            feedQuery.category = "india";
+            dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else if (tab === "world" || country === "INTERNATIONAL") {
+            query.country = { $ne: "IN" };
+            query.category = { $in: ["world", "international"] };
+            feedQuery.category = { $in: ["world", "international"] };
+            dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else if (tab === "current_affairs") {
+            const last48Hours = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            dateFilter = { publishedAt: { $gte: last48Hours } };
+        } else if (["politics", "business", "technology", "sports", "entertainment", "health"].includes(tab?.toLowerCase())) {
+            query.category = { $regex: new RegExp(`^${tab}$`, "i") };
+            feedQuery.category = { $regex: new RegExp(`^${tab}$`, "i") };
+            dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else {
+            // Fallback for custom or missing tab
+            if (category) {
+                query.category = category;
+                feedQuery.category = category;
+            }
+            if (country) {
+                query.country = country;
+            }
+
+            // Legacy date filtering
+            if (yesterday === "true") {
+                const d = new Date();
+                d.setDate(d.getDate() - 1);
+                dateFilter = { publishedAt: { $gte: d } };
+            } else if (req.query.month === "true") {
+                const d = new Date();
+                d.setDate(d.getDate() - 30);
+                dateFilter = { publishedAt: { $gte: d } };
+            } else if (all === "true" || all === "today") {
+                // [All] tab should show today's news
+                dateFilter = { publishedAt: { $gte: startOfToday } };
+            } else {
+                // DEFAULT: fresh latest news (last 3 days)
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                dateFilter = { publishedAt: { $gte: threeDaysAgo } };
+            }
+        }
+
+        // Search logic in unified
+        if (q) {
+            const regex = new RegExp(q, "i");
+            const searchObj = { $or: [{ "title.en": regex }, { title: regex }, { summary: regex }, { content: regex }] };
+            Object.assign(query, searchObj);
+            Object.assign(feedQuery, searchObj);
         }
 
         // Fetch from BOTH models in parallel
         // If limit is provided, use it. Otherwise, no limit (unlimited).
         const oldNewsPromise = News.find({ ...query, ...dateFilter, status: "approved" }).sort({ publishedAt: -1 });
-        const feedNewsPromise = FeedNews.find({ ...query, ...dateFilter }).sort({ publishedAt: -1 });
+        const feedNewsPromise = FeedNews.find({ ...feedQuery, ...dateFilter }).sort({ publishedAt: -1 });
 
         if (limit) {
             oldNewsPromise.limit(parseInt(limit));
@@ -140,6 +188,20 @@ router.get("/", async (req, res) => {
             // Secondarily sort by date
             return new Date(b.publishedAt) - new Date(a.publishedAt);
         });
+
+        // 🔥 NEW: Mode to show only latest news per category
+        if (req.query.mode === "latest_per_category") {
+            const latestByCategory = {};
+            unified.forEach(item => {
+                const cat = item.category || "General";
+                if (!latestByCategory[cat]) {
+                    latestByCategory[cat] = item;
+                }
+            });
+            unified = Object.values(latestByCategory);
+            // Re-sort as needed (they are already sorted within categories)
+            unified.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        }
 
         // Apply limit only if specified
         if (limit) {

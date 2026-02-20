@@ -148,7 +148,7 @@ export const getAllNews = async (req, res) => {
         const isToday = req.path.includes("today") || req.query.all === "true"; // Assuming 'all=true' meant today based on old logic
 
         // Build query
-        const dbQuery = {};
+        const dbQuery = { ...filters }; // Include all extra filters like country, language, etc.
         if (category) {
             // 🧠 Smart Category Mapping
             if (category === "current_affairs") {
@@ -165,24 +165,28 @@ export const getAllNews = async (req, res) => {
         if (searchQuery) {
             const regex = new RegExp(searchQuery, "i");
             dbQuery.$or = [
-                { "title.en": regex }, // Search in English title
-                { "title": regex },    // Search in legacy string title
+                { "title.en": regex },
+                { "title": regex },
                 { "description.en": regex },
-                { "description": regex }, // Legacy string desc
-                { "summary": regex }      // FeedNews summary
+                { "description": regex },
+                { "summary": regex }
             ];
         }
 
-        // Date Filter Logic
+        // Date Filter Logic (Default: Today to keep it "latest")
         let dateFilter = {};
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
         if (isPrevious) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            dateFilter = { publishedAt: { $lt: today } };
+            dateFilter = { publishedAt: { $lt: startOfToday } };
         } else if (isToday) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            dateFilter = { publishedAt: { $gte: today } };
+            dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else if (!req.query.all && !req.query.month) {
+            // DEFAULT: Last 3 days if not explicitly asking for everything or monthly
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+            dateFilter = { publishedAt: { $gte: threeDaysAgo } };
         }
 
         // Fetch from BOTH collections
@@ -242,9 +246,16 @@ export const getSingleNews = async (req, res) => {
 export const updateNews = async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
+        const updates = { ...req.body };
 
-        const news = await News.findByIdAndUpdate(id, updates, { new: true });
+        // Handle status aliases
+        if (updates.status) {
+            if (updates.status === "published") updates.status = "approved";
+            if (updates.status === "fake") updates.status = "rejected";
+            if (updates.status === "draft") updates.status = "pending";
+        }
+
+        const news = await News.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
         if (!news) {
             return res.status(404).json({ success: false, message: "News not found" });
         }
@@ -327,6 +338,49 @@ export const incrementNewsView = async (req, res) => {
             { new: true }
         );
         res.json({ success: true, views: news.views });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🛡️ ADMIN: GET PENDING NEWS
+ * GET /api/news/admin/pending
+ */
+export const getPendingNews = async (req, res) => {
+    try {
+        const pending = await News.find({ status: "pending" }).sort({ createdAt: -1 });
+        const transformed = pending.map(item => transformNews(item, req.query.lang || "en"));
+        res.json({ success: true, count: transformed.length, data: transformed });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🛡️ ADMIN: APPROVE NEWS
+ * POST /api/news/admin/approve/:id
+ */
+export const approveNews = async (req, res) => {
+    try {
+        const news = await News.findByIdAndUpdate(req.params.id, { status: "approved" }, { new: true });
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+        res.json({ success: true, message: "News approved and published!", data: news });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🛡️ ADMIN: REJECT NEWS
+ * POST /api/news/admin/reject/:id
+ */
+export const rejectNews = async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const news = await News.findByIdAndUpdate(req.params.id, { status: "rejected", rejectionReason: reason }, { new: true });
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+        res.json({ success: true, message: "News rejected.", data: news });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

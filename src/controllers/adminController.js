@@ -152,8 +152,8 @@ export const resetPassword = async (req, res) => {
 export const getDashboardStats = async (req, res) => {
     try {
         // 1. Get Core Counts (Only Published for Total)
-        const publishedAdminNews = await News.countDocuments({ isUserPost: false, status: "published" });
-        const publishedUserNews = await News.countDocuments({ isUserPost: true, status: "published" });
+        const publishedAdminNews = await News.countDocuments({ isUserPost: false, status: "approved" });
+        const publishedUserNews = await News.countDocuments({ isUserPost: true, status: "approved" });
         const feedNewsCount = await FeedNews.countDocuments();
 
         // Total user submissions (all statuses)
@@ -165,7 +165,7 @@ export const getDashboardStats = async (req, res) => {
         });
         const totalUsers = await User.countDocuments({ role: "user" });
         const totalQuizzes = await Quiz.countDocuments();
-        const fakeNews = await News.countDocuments({ status: "fake" });
+        const fakeNews = await News.countDocuments({ status: "rejected" });
 
         // 2. API vs RSS Breakdown
         const rssSources = ["BBC News", "NY Times World", "BBC Tech", "The Guardian"];
@@ -201,7 +201,7 @@ export const getDashboardStats = async (req, res) => {
             newUsersData.push(userCount || Math.floor(Math.random() * 10) + 1);
 
             const newsCount = await News.countDocuments({
-                status: "published",
+                status: "approved",
                 publishedAt: { $gte: startOfMonth, $lte: endOfMonth } // Use publishedAt
             });
             newsPublishedData.push(newsCount || Math.floor(Math.random() * 5) + 1);
@@ -239,9 +239,8 @@ export const getDashboardStats = async (req, res) => {
 
         const recentActivity = recentNews.map(item => ({
             user: item.author?.fullName || "Admin",
-            action: item.status === "published" ? "Published news" :
-                item.status === "approved" ? "Approved news" :
-                    item.status === "rejected" ? "Rejected news" : "Updated news",
+            action: item.status === "approved" ? "Approved news" :
+                item.status === "rejected" ? "Rejected news" : "Updated news",
             detail: item.title?.en || "New Post",
             time: getTimeAgo(item.updatedAt),
             avatar: item.author?.avatar || ""
@@ -310,7 +309,12 @@ export const getAllNews = async (req, res) => {
         }
 
         if (category) query.category = category;
-        if (status) query.status = status;
+        if (status) {
+            if (status === "published") query.status = "approved";
+            else if (status === "fake") query.status = "rejected";
+            else if (status === "draft") query.status = "pending";
+            else query.status = status;
+        }
 
         const total = await News.countDocuments(query);
         const news = await News.find(query)
@@ -346,7 +350,7 @@ export const getSingleNews = async (req, res) => {
 // 3. CREATE NEWS (Admin)
 export const createNewsAdmin = async (req, res) => {
     try {
-        const { title, description, category, language = "en", status = "draft" } = req.body;
+        const { title, description, category, language = "en", status = "approved" } = req.body;
         console.log("Admin Creating News:", req.body);
 
         // Handle Media Uploads
@@ -406,7 +410,12 @@ export const updateNewsAdmin = async (req, res) => {
         if (title && language) news.title[language] = title;
         if (description && language) news.description[language] = description;
         if (category) news.category = category;
-        if (status) news.status = status;
+        if (status) {
+            if (status === "published") news.status = "approved";
+            else if (status === "fake") news.status = "rejected";
+            else if (status === "draft") news.status = "pending";
+            else news.status = status;
+        }
         if (language) news.language = language;
 
         // Handle Media Replacements
@@ -496,9 +505,9 @@ export const getSubmissionStats = async (req, res) => {
         };
 
         const pending = await News.countDocuments({ ...filter, status: "pending" });
-        const approved = await News.countDocuments({ ...filter, status: "published" }); // 'published' means approved/live
+        const approved = await News.countDocuments({ ...filter, status: "approved" });
         const rejected = await News.countDocuments({ ...filter, status: "rejected" });
-        const fake = await News.countDocuments({ ...filter, status: "fake" });
+        const fake = await News.countDocuments({ ...filter, status: "rejected" });
 
         res.json({
             success: true,
@@ -534,7 +543,7 @@ export const getSingleSubmission = async (req, res) => {
 export const approveSubmission = async (req, res) => {
     try {
         await News.findByIdAndUpdate(req.params.id, {
-            status: "published" // Make it live
+            status: "approved" // Make it live
         });
 
         res.json({ success: true, message: "Submission approved and published" });
@@ -561,10 +570,10 @@ export const rejectSubmission = async (req, res) => {
 export const markFakeSubmission = async (req, res) => {
     try {
         await News.findByIdAndUpdate(req.params.id, {
-            status: "fake"
+            status: "rejected"
         });
 
-        res.json({ success: true, message: "Submission marked as Fake News" });
+        res.json({ success: true, message: "Submission marked as Rejected" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
