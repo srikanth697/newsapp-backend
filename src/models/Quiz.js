@@ -13,8 +13,8 @@ const QuizSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        required: true,
-        enum: ["general", "science", "history", "geography", "entertainment", "sports"]
+        default: "general",
+        enum: ["general", "science", "history", "geography", "entertainment", "sports", "politics", "business", "technology", "world"]
     },
     difficulty: {
         type: String,
@@ -34,6 +34,17 @@ const QuizSchema = new mongoose.Schema({
         enum: ["draft", "published", "archived"],
         default: "draft"
     },
+    // 🔗 AI News Link
+    newsId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "News",
+        default: null
+    },
+    sourceType: {
+        type: String,
+        enum: ["admin", "ai_content", "ai_news"],
+        default: "admin"
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
@@ -46,4 +57,9 @@ const QuizSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Faster public quiz listing
+QuizSchema.index({ status: 1, createdAt: -1 });
+
 export default mongoose.model("Quiz", QuizSchema);
+
+

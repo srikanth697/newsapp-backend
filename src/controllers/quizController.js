@@ -35,8 +35,8 @@ export const getAllQuizzes = async (req, res) => {
         const { category, difficulty, search, status } = req.query;
         let query = {};
 
-        // If user is admin, allow status filtering. Otherwise only published.
-        if (req.user && req.user.role === "admin") {
+        // Safe check — req.user may be undefined on public route
+        if (req.user?.role === "admin") {
             if (status) query.status = status;
         } else {
             query.status = "published";
@@ -48,6 +48,7 @@ export const getAllQuizzes = async (req, res) => {
 
         const quizzes = await Quiz.find(query)
             .sort({ createdAt: -1 })
+            .populate("newsId", "title imageUrl") // Link to news article
             .select("-questions.correctOptionIndex -questions.explanation"); // Hide answers for list view
 
         res.json({ success: true, count: quizzes.length, quizzes });

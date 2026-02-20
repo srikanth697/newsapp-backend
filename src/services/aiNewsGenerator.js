@@ -1,10 +1,49 @@
 import { fetchRSS } from "./rssService.js";
 import { fetchFromNewsAPI } from "./newsApiService.js";
 import { scrapeArticle } from "./scrapeService.js";
-import { rewriteWithAI } from "./aiService.js";
+import { rewriteWithAI, generateQuizFromContent } from "./aiService.js";
 import News from "../models/News.js";
+import Quiz from "../models/Quiz.js";
 import Category from "../models/Category.js";
 import { isDuplicateInDB } from "../utils/deduplicate.js";
+
+/**
+ * 🧩 AUTO QUIZ GENERATOR
+ * Generates and saves a quiz from a saved news item
+ */
+async function autoGenerateQuiz(savedNews, cleanContent, cleanTitle) {
+    try {
+        const quizData = await generateQuizFromContent(cleanContent, cleanTitle);
+        if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+            console.log("⚠️ No quiz generated — skipping.");
+            return;
+        }
+
+        // Map category string to Quiz model enum
+        const catMap = {
+            politics: "politics", business: "business", sports: "sports",
+            technology: "technology", entertainment: "entertainment",
+            world: "world", health: "general", general: "general"
+        };
+        const newsCategory = (savedNews.category?.toString() || "general").toLowerCase();
+        const quizCategory = catMap[newsCategory] || "general";
+
+        await Quiz.create({
+            title: quizData.title || cleanTitle,
+            description: quizData.description || "Test your knowledge on this news topic.",
+            questions: quizData.questions,
+            category: quizCategory,
+            newsId: savedNews._id,
+            sourceType: "ai_news",
+            status: "published", // Auto-publish AI quizzes
+            timerMinutes: 3
+        });
+
+        console.log(`🧩 Quiz auto-generated for: "${cleanTitle}"`);
+    } catch (err) {
+        console.error(`❌ Quiz Generation failed for "${cleanTitle}":`, err.message);
+    }
+}
 
 /**
  * 🖼️ GUARANTEED DEFAULT IMAGES
@@ -172,7 +211,7 @@ export const generateAINews = async () => {
                 // Determine Region/Country
                 const countryCode = aiData.region?.toLowerCase() === "india" ? "IN" : "GLOBAL";
 
-                await News.create({
+                const savedNews = await News.create({
                     title: { en: cleanTitle },
                     description: { en: cleanSummary },
                     content: { en: cleanContent },
@@ -189,6 +228,11 @@ export const generateAINews = async () => {
                 });
 
                 console.log(`✅ Scheduled: "${cleanTitle}" (${cleanContent.split(/\s+/).length} words) for ${publishDate.toLocaleString()}`);
+
+                // 🧩 Auto-generate quiz from this news article (non-blocking)
+                autoGenerateQuiz(savedNews, cleanContent, cleanTitle).catch(err =>
+                    console.error("Quiz auto-gen failed silently:", err.message)
+                );
 
                 processedCount++;
                 nextPublishTime = new Date(nextPublishTime.getTime() + staggerMinutes * 60000);

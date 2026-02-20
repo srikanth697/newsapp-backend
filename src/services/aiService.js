@@ -134,3 +134,84 @@ export const rewriteWithAI = async (text, originalTitle = "") => {
         };
     }
 };
+
+/**
+ * 🧩 QUIZ GENERATOR FROM NEWS CONTENT
+ * Generates 5 MCQ questions from a news article
+ */
+export const generateQuizFromContent = async (content, title = "") => {
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            console.error("❌ Missing GEMINI_API_KEY in .env");
+            return null;
+        }
+
+        const trimmed = content.substring(0, 4000);
+
+        const prompt = `
+        You are a professional quiz creator.
+        Create exactly 5 multiple choice questions based on the news article below.
+
+        STRICT RULES:
+        1. Each question must have exactly 4 options.
+        2. correctOptionIndex must be 0, 1, 2, or 3 (zero-based index of the correct option).
+        3. Provide a brief explanation for the correct answer.
+        4. Questions should test factual knowledge from the article.
+        5. Return ONLY valid JSON. No extra text.
+
+        Return format:
+        {
+          "title": "${title || "News Quiz"}",
+          "description": "Test your knowledge on this topic",
+          "questions": [
+            {
+              "questionText": "Question goes here?",
+              "options": ["Option A", "Option B", "Option C", "Option D"],
+              "correctOptionIndex": 0,
+              "explanation": "Explanation of why the answer is correct."
+            }
+          ]
+        }
+
+        News Article:
+        ${trimmed}
+        `;
+
+        const modelNames = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-1.5-flash"];
+        let result = null;
+
+        for (const modelName of modelNames) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const modelResult = await model.generateContent(prompt);
+                if (modelResult && modelResult.response) {
+                    result = modelResult;
+                    break;
+                }
+            } catch (err) {
+                console.warn(`⚠️ Quiz model ${modelName} failed: ${err.message}`);
+                continue;
+            }
+        }
+
+        if (!result) throw new Error("All quiz models failed");
+
+        const response = await result.response;
+        const raw = response.text();
+        const cleaned = raw.replace(/```json|```/g, "").trim();
+        const quizData = safeParse(cleaned);
+
+        // Validate structure
+        if (!quizData.questions || quizData.questions.length === 0) {
+            throw new Error("Quiz generation returned no questions");
+        }
+
+        console.log(`✅ Quiz generated: ${quizData.questions.length} questions for "${title}"`);
+        return quizData;
+
+    } catch (error) {
+        console.error("❌ Quiz Generation Error:", error.message);
+        return null;
+    }
+};
+

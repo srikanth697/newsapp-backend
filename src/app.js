@@ -12,7 +12,7 @@ import quizRoutes from "./routes/quizRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
-import { rewriteWithAI } from "./services/aiService.js";
+import { rewriteWithAI, generateQuizFromContent } from "./services/aiService.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -51,6 +51,16 @@ app.get("/api/test-gemini", async (req, res) => {
     console.log("🛠️ Testing Gemini API...");
     const data = await rewriteWithAI("The Indian space agency ISRO has successfully launched a satellite.");
     res.json({ success: !!data, data });
+});
+
+// 🧩 DEBUG ROUTE: Test Gemini Quiz Generation
+app.get("/api/test-quiz-ai", async (req, res) => {
+    console.log("🛠️ Testing Quiz AI...");
+    const quiz = await generateQuizFromContent(
+        "India won the Cricket World Cup in 2023 after defeating Australia in the final. The match was played in Ahmedabad. Virat Kohli was the top scorer of the tournament with 765 runs.",
+        "Cricket World Cup 2023"
+    );
+    res.json({ success: !!quiz, quiz });
 });
 
 app.get("/", (req, res) => res.send("News API is running..."));
