@@ -32,23 +32,26 @@ router.get("/", async (req, res) => {
         // 🔥 NEW: Tab-based filtering logic
         const { tab, q, country } = req.query;
         let dateFilter = {};
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const yesterdayStart = new Date(todayStart);
+        yesterdayStart.setDate(todayStart.getDate() - 1);
 
         if (tab === "previous") {
-            dateFilter = { publishedAt: { $lt: startOfToday } };
+            dateFilter = { publishedAt: { $gte: yesterdayStart, $lt: todayStart } };
         } else if (tab === "all") {
-            dateFilter = { publishedAt: { $gte: startOfToday } };
+            dateFilter = { publishedAt: { $gte: todayStart } };
         } else if (tab === "india" || country === "IN") {
             query.country = "IN";
             query.$or = [{ country: "IN" }, { category: "india" }];
             feedQuery.category = "india";
-            dateFilter = { publishedAt: { $gte: startOfToday } };
+            dateFilter = { publishedAt: { $gte: todayStart } };
         } else if (tab === "world" || country === "INTERNATIONAL") {
             query.country = { $ne: "IN" };
             query.$or = [{ category: { $in: ["world", "international"] } }];
             feedQuery.category = { $in: ["world", "international"] };
-            dateFilter = { publishedAt: { $gte: startOfToday } };
+            dateFilter = { publishedAt: { $gte: todayStart } };
         } else if (tab === "current_affairs") {
             const last48Hours = new Date(Date.now() - 48 * 60 * 60 * 1000);
             dateFilter = { publishedAt: { $gte: last48Hours } };
@@ -100,7 +103,7 @@ router.get("/", async (req, res) => {
                 dateFilter = { publishedAt: { $gte: d } };
             } else if (all === "true" || all === "today") {
                 // [All] tab should show today's news
-                dateFilter = { publishedAt: { $gte: startOfToday } };
+                dateFilter = { publishedAt: { $gte: todayStart } };
             } else {
                 // DEFAULT: fresh latest news (last 3 days)
                 const threeDaysAgo = new Date();
@@ -141,22 +144,6 @@ router.get("/", async (req, res) => {
 
         const [oldNews, feedNews] = await Promise.all([oldNewsPromise, feedNewsPromise]);
 
-        // Helper for relative time
-        const getTimeAgo = (date) => {
-            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + "y ago";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + "mo ago";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + "d ago";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + "h ago";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + "m ago";
-            return "Just now";
-        };
-
         // Normalize both to same format
         const normalizedOldNews = oldNews.map((item) => {
             const img = item.imageUrl || item.image;
@@ -179,7 +166,6 @@ router.get("/", async (req, res) => {
                 category: item.category,
                 country: item.country || "IN",
                 publishedAt: item.publishedAt,
-                timeAgo: getTimeAgo(item.publishedAt), // MATCH FLUTTER
                 likes: item.likes || 0,
                 shares: item.shares || 0,
                 savedCount: item.savedCount || 0,
@@ -205,7 +191,6 @@ router.get("/", async (req, res) => {
             category: item.category,
             country: "GLOBAL",
             publishedAt: item.publishedAt,
-            timeAgo: getTimeAgo(item.publishedAt), // MATCH FLUTTER
             likes: item.likes || 0,
             shares: item.shares || 0,
             savedCount: item.savedCount || 0,

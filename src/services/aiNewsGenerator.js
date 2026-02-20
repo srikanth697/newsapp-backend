@@ -33,6 +33,31 @@ const getFallbackImage = (category) => {
 };
 
 /**
+ * 🧹 CLEAN HTML Before Storing
+ */
+function cleanHTMLContent(text) {
+    if (!text) return "";
+    return text
+        .replace(/<[^>]*>?/gm, "") // remove all HTML tags
+        .replace(/\s+/g, " ")     // remove extra spaces
+        .trim();
+}
+
+/**
+ * 🖼️ IMAGE VALIDATION
+ */
+function isValidImage(url) {
+    return (
+        url &&
+        url.startsWith("http") &&
+        (url.endsWith(".jpg") ||
+            url.endsWith(".jpeg") ||
+            url.endsWith(".png") ||
+            url.includes("image"))
+    );
+}
+
+/**
  * 🚀 PRODUCTION AI NEWS GENERATOR
  */
 export const generateAINews = async () => {
@@ -88,12 +113,16 @@ export const generateAINews = async () => {
 
                 if (!aiData || !aiData.title || !aiData.content) continue;
 
+                // Clean HTML from strings
+                const cleanTitle = cleanHTMLContent(aiData.title);
+                const cleanSummary = cleanHTMLContent(aiData.summary);
+                const cleanContent = cleanHTMLContent(aiData.content);
+
                 // 5. Guaranteed Image priority
-                // 1) og:image (via scraper) 2) Body images 3) NewsAPI image 4) RSS item image 5) Default
                 let finalImageUrl = null;
-                if (scraped.images && scraped.images.length > 0) {
+                if (scraped.images && scraped.images.length > 0 && isValidImage(scraped.images[0])) {
                     finalImageUrl = scraped.images[0];
-                } else if (item.image) {
+                } else if (item.image && isValidImage(item.image)) {
                     finalImageUrl = item.image;
                 } else {
                     finalImageUrl = getFallbackImage(aiData.category);
@@ -132,12 +161,10 @@ export const generateAINews = async () => {
                 }
 
                 // 7. Save as 'scheduled'
-                // Use the authentic source date if available and recent, otherwise use the staggered time
                 let publishDate = item.publishedAt && !isNaN(new Date(item.publishedAt))
                     ? new Date(item.publishedAt)
                     : new Date(nextPublishTime.getTime());
 
-                // Safety: If the source date is in the future (unlikely but happens with RSS), cap it at current stagger time
                 if (publishDate > nextPublishTime) {
                     publishDate = new Date(nextPublishTime.getTime());
                 }
@@ -146,11 +173,11 @@ export const generateAINews = async () => {
                 const countryCode = aiData.region?.toLowerCase() === "india" ? "IN" : "GLOBAL";
 
                 await News.create({
-                    title: { en: aiData.title },
-                    description: { en: aiData.summary },
-                    content: { en: aiData.content },
+                    title: { en: cleanTitle },
+                    description: { en: cleanSummary },
+                    content: { en: cleanContent },
                     imageUrl: finalImageUrl,
-                    images: scraped.images && scraped.images.length > 0 ? scraped.images : [finalImageUrl],
+                    images: scraped.images && scraped.images.length > 0 ? scraped.images.filter(isValidImage) : [finalImageUrl],
                     videos: scraped.videos,
                     sourceUrl: item.url,
                     source: item.source || "AI Daily",
@@ -161,7 +188,7 @@ export const generateAINews = async () => {
                     isUserPost: false
                 });
 
-                console.log(`✅ Scheduled: "${aiData.title}" (${aiData.content.split(/\s+/).length} words) for ${publishDate.toLocaleString()}`);
+                console.log(`✅ Scheduled: "${cleanTitle}" (${cleanContent.split(/\s+/).length} words) for ${publishDate.toLocaleString()}`);
 
                 processedCount++;
                 nextPublishTime = new Date(nextPublishTime.getTime() + staggerMinutes * 60000);
