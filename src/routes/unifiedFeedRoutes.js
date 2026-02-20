@@ -1,6 +1,7 @@
 import express from "express";
 import News from "../models/News.js";
 import FeedNews from "../models/FeedNews.js";
+import Category from "../models/Category.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -45,16 +46,39 @@ router.get("/", async (req, res) => {
             dateFilter = { publishedAt: { $gte: startOfToday } };
         } else if (tab === "world" || country === "INTERNATIONAL") {
             query.country = { $ne: "IN" };
-            query.category = { $in: ["world", "international"] };
+            query.$or = [{ category: { $in: ["world", "international"] } }];
             feedQuery.category = { $in: ["world", "international"] };
             dateFilter = { publishedAt: { $gte: startOfToday } };
         } else if (tab === "current_affairs") {
             const last48Hours = new Date(Date.now() - 48 * 60 * 60 * 1000);
             dateFilter = { publishedAt: { $gte: last48Hours } };
-        } else if (["politics", "business", "technology", "sports", "entertainment", "health"].includes(tab?.toLowerCase())) {
-            query.category = { $regex: new RegExp(`^${tab}$`, "i") };
-            feedQuery.category = { $regex: new RegExp(`^${tab}$`, "i") };
-            dateFilter = { publishedAt: { $gte: startOfToday } };
+        } else if (tab) {
+            // 🧠 SMART CATEGORY RESOLUTION (Politics, Sports, Tech, etc.)
+            try {
+                const foundCategory = await Category.findOne({
+                    $or: [
+                        { name: { $regex: new RegExp(`^${tab}$`, "i") } },
+                        { slug: { $regex: new RegExp(`^${tab}$`, "i") } }
+                    ]
+                });
+
+                if (foundCategory) {
+                    // Match by ID for News, and by Slug/Name for FeedNews
+                    query.category = foundCategory._id;
+                    feedQuery.category = { $regex: new RegExp(`^${foundCategory.slug}|${foundCategory.name}$`, "i") };
+                } else {
+                    // Fallback to direct string match
+                    query.category = { $regex: new RegExp(`^${tab}$`, "i") };
+                    feedQuery.category = { $regex: new RegExp(`^${tab}$`, "i") };
+                }
+            } catch (e) {
+                query.category = { $regex: new RegExp(`^${tab}$`, "i") };
+                feedQuery.category = { $regex: new RegExp(`^${tab}$`, "i") };
+            }
+
+            // For specific category tabs, show latest 24 hours to ensure they aren't empty
+            const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            dateFilter = { publishedAt: { $gte: last24Hours } };
         } else {
             // Fallback for custom or missing tab
             if (category) {
