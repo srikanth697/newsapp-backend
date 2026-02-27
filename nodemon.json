@@ -1,9 +1,17 @@
 {
+    "verbose": true,
     "ignore": [
+        "node_modules",
+        ".git",
+        "uploads",
         "*.log",
-        "dns_result.txt",
-        "uploads/*",
-        "*.tmp"
+        "*.txt",
+        "*.tmp",
+        "package-lock.json"
     ],
-    "delay": "1000"
+    "watch": [
+        "src"
+    ],
+    "ext": "js,json",
+    "delay": "2500"
 }
