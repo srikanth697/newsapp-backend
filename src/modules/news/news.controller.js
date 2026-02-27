@@ -1,73 +1,48 @@
 import News from "./news.model.js";
-import { fetchAllNews } from "./news.service.js";
-import mongoose from "mongoose";
+import { runCronFetch } from "./news.service.js";
 
-export const fetchNewsNow = async (req, res) => {
-    try {
-        console.log("🚀 Manual news fetch triggered...");
-        fetchAllNews(); // Non-blocking
-        res.json({ success: true, message: "News fetch process started in background." });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
+export const manualFetch = async (req, res) => {
+    runCronFetch(); // Background
+    res.json({ success: true, message: "Manual fetch initiated in background." });
 };
 
-export const getNewsByCategory = async (req, res) => {
-    try {
-        const { tab, page = 1 } = req.query;
+export const getNewsByTab = async (req, res) => {
+    const { tab, page = 1 } = req.query;
+    const limit = 10;
+    const skip = (page - 1) * limit;
 
-        const limit = 10;
-        const skip = (page - 1) * limit;
+    let filter = {};
 
-        let filter = {};
-
-        if (tab === "previous") {
+    switch (tab) {
+        case "previous":
             filter.isToday = false;
-        } else {
+            break;
+        case "india":
             filter.isToday = true;
-
-            if (tab === "india") {
-                filter.country = "india";
-            } else if (tab === "world") {
-                filter.country = "world";
-            } else if (["current-affairs", "politics", "business", "technology", "sports", "entertainment"].includes(tab)) {
-                filter.category = tab;
-            }
-        }
-
-        const news = await News.find(filter)
-            .sort({ publishedAt: -1 })
-            .skip(skip)
-            .limit(limit);
-
-        res.json({
-            success: true,
-            count: news.length,
-            news: news
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+            filter.country = "india";
+            break;
+        case "world":
+            filter.isToday = true;
+            filter.country = "world";
+            break;
+        default:
+            filter.isToday = true;
+            if (tab) filter.category = tab;
     }
+
+    const news = await News.find(filter)
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+    res.json({ success: true, news });
 };
 
-export const getSingleNews = async (req, res) => {
-    try {
-        const { id } = req.params;
+export const getArticleDetails = async (req, res) => {
+    const news = await News.findById(req.params.id);
+    if (!news) return res.status(404).json({ success: false });
 
-        // Prevent CastError if ID is invalid (like "fetch")
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ success: false, message: "DEBUG_INVALID_ID_FORMAT" });
-        }
-
-        const news = await News.findById(id);
-        if (!news) {
-            return res.status(404).json({ success: false, message: "News article not found" });
-        }
-
-        news.views += 1;
-        await news.save();
-        res.json({ success: true, news });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
+    news.views += 1;
+    await news.save();
+    res.json({ success: true, news });
 };

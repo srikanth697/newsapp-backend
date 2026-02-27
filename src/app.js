@@ -6,6 +6,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import newsRoutes from "./modules/news/news.routes.js";
+import quizRoutes from "./modules/quiz/quiz.routes.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -21,7 +22,8 @@ app.use("/api/language", languageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/news", newsRoutes);
-app.use("/api/unified", newsRoutes); // Added alias for compatibility
+app.use("/api/unified", newsRoutes);
+app.use("/api/quiz", quizRoutes); // New Quiz System
 
 // Fallback Routes (for clients omitting /api prefix)
 app.use("/auth", authRoutes);

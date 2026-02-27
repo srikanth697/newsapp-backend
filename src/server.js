@@ -4,7 +4,7 @@ dotenv.config();
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import cron from "node-cron";
-import { fetchAllNews } from "./modules/news/news.service.js";
+import { runCronFetch } from "./modules/news/news.service.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -12,9 +12,10 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // 🔥 Auto Cron: Fetch news every 30 minutes
-cron.schedule("*/30 * * * *", async () => {
-    console.log("⏰ Auto-fetching latest news...");
-    await fetchAllNews().catch(err => console.error("Cron fetch error:", err.message));
+// Non-blocking, production patterns
+cron.schedule("*/30 * * * *", () => {
+    console.log("⏰ [CRON] Triggering automated news pipeline...");
+    runCronFetch().catch(err => console.error("Cron Error:", err.message));
 });
 
 // Start server
