@@ -56,7 +56,7 @@ export const getSingleNews = async (req, res) => {
 
         // Prevent CastError if ID is invalid (like "fetch")
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ success: false, message: "Invalid article ID format" });
+            return res.status(400).json({ success: false, message: "DEBUG_INVALID_ID_FORMAT" });
         }
 
         const news = await News.findById(id);
