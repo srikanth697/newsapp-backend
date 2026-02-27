@@ -1,0 +1,9 @@
+{
+    "ignore": [
+        "*.log",
+        "dns_result.txt",
+        "uploads/*",
+        "*.tmp"
+    ],
+    "delay": "1000"
+}
