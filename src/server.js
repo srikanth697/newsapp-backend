@@ -12,10 +12,10 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // 🔥 Auto Cron: Fetch news every 30 minutes
-// Non-blocking, production patterns
+// Non-blocking, Race-Safe protected
 cron.schedule("*/30 * * * *", () => {
     console.log("⏰ [CRON] Triggering automated news pipeline...");
-    runCronFetch().catch(err => console.error("Cron Error:", err.message));
+    runCronFetch().catch(err => console.error("Cron Process Error:", err.message));
 });
 
 // Start server

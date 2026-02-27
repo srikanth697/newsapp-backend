@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const newsSchema = new mongoose.Schema({
-    title: { type: String, required: true, unique: true },
-    slug: { type: String, required: true },
+    title: { type: String, required: true },
+    slug: { type: String, required: true, unique: true }, // Logic: Use slug as the primary unique identifier
     shortDescription: String,
     rewrittenContent: String,
-    image: { type: String, required: true }, // Every saved article MUST contain image
+    image: { type: String, required: true },
     source: String,
     author: { type: String, default: "First Report Staff" },
     category: { type: String, required: true },
@@ -15,9 +15,10 @@ const newsSchema = new mongoose.Schema({
     views: { type: Number, default: 0 }
 }, { timestamps: true });
 
-// Indexes for performance
+// Strict Indexes
+newsSchema.index({ slug: 1 }, { unique: true });
 newsSchema.index({ category: 1, isToday: 1 });
 newsSchema.index({ publishedAt: -1 });
-newsSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }); // 30 Day TTL
+newsSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export default mongoose.model("News", newsSchema);
