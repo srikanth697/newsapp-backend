@@ -1,18 +1,11 @@
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
-import newsRoutes from "./routes/newsRoutes.js";
-import feedRoutes from "./routes/feedRoutes.js";
-import unifiedFeedRoutes from "./routes/unifiedFeedRoutes.js";
 import languageRoutes from "./routes/languageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js";
-
-import quizRoutes from "./routes/quizRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
-import categoryRoutes from "./routes/categoryRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
-import { rewriteWithAI, generateQuizFromContent } from "./services/aiService.js";
+import newsRoutes from "./modules/news/news.routes.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -24,73 +17,19 @@ app.use("/uploads", express.static("uploads"));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/api/feed", feedRoutes);
-app.use("/api/unified", unifiedFeedRoutes);
-app.use("/api/language", languageRoutes); // Fixed path
-app.use("/api/news", newsRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/quiz", quizRoutes);
+app.use("/api/language", languageRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/categories", categoryRoutes);
 app.use("/api/settings", settingsRoutes);
-
-
+app.use("/api/news", newsRoutes);
+app.use("/api/unified", newsRoutes); // Added alias for compatibility
 
 // Fallback Routes (for clients omitting /api prefix)
 app.use("/auth", authRoutes);
 app.use("/upload", uploadRoutes);
-app.use("/feed", feedRoutes);
-app.use("/unified", unifiedFeedRoutes);
 app.use("/language", languageRoutes);
-app.use("/news", newsRoutes);
-app.use("/quiz", quizRoutes);
 app.use("/notifications", notificationRoutes);
 
-// 🤖 DEBUG ROUTE: Test Gemini AI
-app.get("/api/test-gemini", async (req, res) => {
-    console.log("🛠️ Testing Gemini API...");
-    const data = await rewriteWithAI("The Indian space agency ISRO has successfully launched a satellite.");
-    res.json({ success: !!data, data });
-});
-
-// 🧩 DEBUG ROUTE: Test Gemini Quiz Generation
-app.get("/api/test-quiz-ai", async (req, res) => {
-    console.log("🛠️ Testing Quiz AI...");
-    const quiz = await generateQuizFromContent(
-        "India won the Cricket World Cup in 2023 after defeating Australia in the final. The match was played in Ahmedabad. Virat Kohli was the top scorer of the tournament with 765 runs.",
-        "Cricket World Cup 2023"
-    );
-    res.json({ success: !!quiz, quiz });
-});
-
-// 🔍 DEBUG ROUTE: Check what's in the Quiz collection
-app.get("/api/quiz-debug", async (req, res) => {
-    try {
-        const Quiz = (await import("./models/Quiz.js")).default;
-        const News = (await import("./models/News.js")).default;
-
-        const [totalQuizzes, publishedQuizzes, aiQuizzes, recentQuizzes, newsCounts] = await Promise.all([
-            Quiz.countDocuments(),
-            Quiz.countDocuments({ status: "published" }),
-            Quiz.countDocuments({ sourceType: "ai_news" }),
-            Quiz.find().sort({ createdAt: -1 }).limit(5).select("title status sourceType category createdAt newsId"),
-            News.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
-        ]);
-
-        res.json({
-            quizSummary: { totalQuizzes, publishedQuizzes, aiQuizzes },
-            recentQuizzes,
-            newsStatusCounts: newsCounts,
-            message: publishedQuizzes === 0
-                ? "⚠️ NO published quizzes found! Run POST /api/quiz/backfill with admin token to generate them."
-                : `✅ ${publishedQuizzes} published quizzes ready.`
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-app.get("/", (req, res) => res.send("News API is running..."));
+app.get("/", (req, res) => res.send("Auth & Core Services API is running..."));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -103,5 +42,3 @@ app.use((err, req, res, next) => {
 });
 
 export default app;
-
-
