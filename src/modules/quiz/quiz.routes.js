@@ -1,3 +1,4 @@
+import express from "express";
 import { getQuiz, generateCustomQuiz, submitAttempt, getCategories, getAdminQuizzes, createQuiz, updateQuiz, deleteQuiz } from "./quiz.controller.js";
 import { protect, adminOnly } from "../../middleware/authMiddleware.js";
 
