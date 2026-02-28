@@ -9,7 +9,6 @@ import { callDeepSeek } from "../../services/ai.service.js";
 const parser = new Parser();
 let isFetching = false;
 
-// 🕒 Freshness Check
 const isRecent = (date, hours = 24) => {
     const pubDate = dayjs(date);
     const now = dayjs();
@@ -30,15 +29,32 @@ const calculateTrendingScore = (views, publishedAt) => {
     return Math.max(100 - hoursOld, 0) + (views * 2);
 };
 
+// 🎯 Keywords for robust local detection before AI
+const KEYWORD_MAP = {
+    sports: ["cricket", "football", "tennis", "olympics", "ipl", "fifa", "bcci", "match", "tournament", "athlete", "golf", "wrestling"],
+    technology: ["tech", "iphone", "apple", "google", "microsoft", "silicon", "semiconductor", "cyber", "ai", "artificial intelligence", "robot", "gadget", "software", "whatsapp", "meta"],
+    business: ["market", "stock", "shares", "sensex", "nifty", "economy", "startup", "founder", "billionaire", "bank", "finance", "ceo", "investment", "tax", "budget"],
+    politics: ["election", "modi", "minister", "parliament", "congress", "bjp", "government", "policy", "visa", "diplomatic", "treaty", "senate"],
+    entertainment: ["movie", "bollywood", "hollywood", "ott", "netflix", "trailer", "actor", "actress", "celebrity", "cinema", "film", "concert", "music", "pop star"]
+};
+
+const detectCategoryLocally = (title, content) => {
+    const text = `${title} ${content}`.toLowerCase();
+    for (const [category, keywords] of Object.entries(KEYWORD_MAP)) {
+        if (keywords.some(kw => text.includes(kw))) return category;
+    }
+    return "current-affairs";
+};
+
 const detectCategoryWithAI = async (title, content) => {
     try {
         const prompt = `Classify this news into exactly one category: politics, business, technology, sports, entertainment, current-affairs. Return only the category word.\n\nTitle: ${title}\nContent: ${content.substring(0, 300)}`;
         const result = await callDeepSeek("You are a news classification AI.", prompt);
         const cat = result.trim().toLowerCase().split(' ')[0].replace(/[^a-z-]/g, "");
         const validCategories = ["politics", "business", "technology", "sports", "entertainment", "current-affairs"];
-        return validCategories.includes(cat) ? cat : "current-affairs";
+        return validCategories.includes(cat) ? cat : detectCategoryLocally(title, content);
     } catch (e) {
-        return "current-affairs";
+        return detectCategoryLocally(title, content);
     }
 };
 
@@ -57,8 +73,9 @@ const saveArticle = async (article) => {
 
         if (!image || !publishedAt) return false;
 
-        // Special logic for Current Affairs (48h) vs others (24h)
-        const isCurrentAffairsCandidate = (article.category === 'current-affairs' || (article.title + (article.description || "")).toLowerCase().includes('current affairs'));
+        // Smart Window logic
+        const contentForCheck = (title + (article.description || "")).toLowerCase();
+        const isCurrentAffairsCandidate = contentForCheck.includes('current affairs') || contentForCheck.includes('breaking');
         const hourWindow = isCurrentAffairsCandidate ? 48 : 24;
 
         if (!isRecent(publishedAt, hourWindow)) return false;
@@ -69,6 +86,10 @@ const saveArticle = async (article) => {
         const simExisting = await News.findOne({ similarityFingerprint });
         if (simExisting) return false;
 
+        // Perform local detection immediately to avoid empty categories
+        const localCategory = detectCategoryLocally(title, rawContent);
+        const isIndia = contentForCheck.includes('india') || contentForCheck.includes('delhi') || contentForCheck.includes('mumbai') || contentForCheck.includes('indian');
+
         const result = await News.updateOne(
             { contentHash },
             {
@@ -78,10 +99,11 @@ const saveArticle = async (article) => {
                     shortDescription: article.description || title,
                     rewrittenContent: "Processing AI Rewrite...",
                     image,
-                    category: "current-affairs",
+                    category: localCategory,
                     source: article.source?.name || article.source || "Global",
                     publishedAt: new Date(publishedAt),
                     isToday: true,
+                    country: isIndia ? "india" : "world",
                     contentHash,
                     similarityFingerprint
                 }
@@ -90,13 +112,13 @@ const saveArticle = async (article) => {
         );
 
         if (result.upsertedCount > 0) {
-            console.log(`🆕 Save Success: ${title.substring(0, 40)}...`);
+            console.log(`🆕 Save [${localCategory.toUpperCase()}]: ${title.substring(0, 40)}...`);
 
             try {
                 const [aiCategory, rewritten] = await Promise.all([
                     detectCategoryWithAI(title, rawContent),
                     callDeepSeek(
-                        "You are a professional journalist. Rewrite this news into professional English (400-500 words). Maintain factual accuracy. No plagiarism.",
+                        "You are a professional journalist. Rewrite this news into professional English (450-500 words). Maintain factual accuracy. Structure with intro and conclusion.",
                         `Source: ${article.source?.name || "Global"}\nTitle: ${title}\nContent: ${rawContent}`
                     )
                 ]);
@@ -113,7 +135,7 @@ const saveArticle = async (article) => {
                             }
                         }
                     );
-                    console.log(`✅ Optimized (AI): ${title.substring(0, 30)}`);
+                    console.log(`✅ AI Optimized [${aiCategory}]: ${title.substring(0, 30)}`);
                 }
             } catch (aiErr) {
                 console.warn(`⚠️ AI Enrichment failed for article: ${title.substring(0, 30)}`);

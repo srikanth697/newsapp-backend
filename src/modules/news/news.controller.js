@@ -16,24 +16,23 @@ export const getNewsByTab = async (req, res) => {
 
         let filter = {};
 
-        // 🧠 Logic: 
-        // 1. If 'previous', show articles where isToday is false.
-        // 2. Otherwise, we show ALL articles (because they are within our 24h-48h 'recent' window)
-        // 3. We then apply specific sub-filters like country or category.
+        // 🧠 Exclusive Tab Logic: 
+        // We ensure that articles don't overlap between tabs to respect "don't show same article in different categories"
 
         if (tab === "previous") {
             filter.isToday = false;
         } else {
-            // For all other tabs, we don't strictly enforce isToday: true 
-            // since we already filtered by 'recent' in the service layer.
-            // This ensures data shows up regardless of calendar day crossovers.
-
+            // For active news tabs
             switch (tab) {
                 case "india":
+                    // Strictly India country, but we can also filter out specific categories if we want extreme exclusivity
                     filter.country = "india";
                     break;
                 case "world":
+                    // World view often acts as a 'General' bucket, so we filter by world country 
+                    // and skip specific niche categories to keep it clean.
                     filter.country = "world";
+                    filter.category = { $nin: ["politics", "business", "technology", "sports", "entertainment"] };
                     break;
                 case "current-affairs":
                 case "politics":
@@ -41,11 +40,12 @@ export const getNewsByTab = async (req, res) => {
                 case "technology":
                 case "sports":
                 case "entertainment":
+                    // Filter strictly by the category provided
                     filter.category = tab;
                     break;
                 default:
-                    // Default view (World/All today)
-                    if (tab && tab !== 'all') filter.category = tab;
+                    // Default view (All today)
+                    filter.isToday = true;
             }
         }
 
