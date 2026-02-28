@@ -97,7 +97,7 @@ export const getAdminQuizzes = async (req, res) => {
         const result = await Promise.all(quizzes.map(async (q) => {
             const attemptCount = await QuizAttempt.countDocuments({ quizId: q._id });
             return {
-                id: q._id,
+                _id: q._id, // Changed from id to _id
                 question: q.questions[0]?.question || q.title,
                 correctAnswer: q.questions[0]?.correctAnswer || "N/A",
                 category: q.category,
