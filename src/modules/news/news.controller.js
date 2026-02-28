@@ -1,5 +1,6 @@
 import News from "./news.model.js";
 import { runCronFetch } from "./news.service.js";
+import * as quizService from "../quiz/quiz.service.js";
 
 export const manualFetch = async (req, res) => {
     runCronFetch(); // Background
@@ -15,11 +16,6 @@ export const getNewsByTab = async (req, res) => {
         const skip = (page - 1) * limit;
 
         let filter = {};
-
-        /**
-         * 🛡️ STRICT EXCLUSIVITY LOGIC
-         * To prevent "same article in different categories", we define clear boundaries:
-         */
 
         const nicheCategories = ["politics", "business", "technology", "sports", "entertainment"];
 
@@ -102,5 +98,15 @@ export const getArticleDetails = async (req, res) => {
         res.json({ success: true, news });
     } catch (error) {
         res.status(400).json({ success: false, message: "Invalid ID format" });
+    }
+};
+
+export const manualGenerateQuiz = async (req, res) => {
+    try {
+        const { newsId } = req.body;
+        const quiz = await quizService.generateQuizFromNewsId(newsId);
+        res.json({ success: true, message: "Quiz generated successfully", quiz });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

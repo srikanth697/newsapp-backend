@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 
 const quizSchema = new mongoose.Schema({
-    category: { type: String, required: true },
+    title: { type: String, required: true },
+    description: { type: String },
+    category: { type: String, required: true, index: true },
+    difficulty: { type: String, enum: ["easy", "medium", "hard"], default: "medium" },
+    image: { type: String }, // Optional direct image URL fallback
     newsId: { type: mongoose.Schema.Types.ObjectId, ref: 'News' },
     questions: [{
         question: { type: String, required: true },
@@ -11,7 +15,5 @@ const quizSchema = new mongoose.Schema({
     }],
     active: { type: Boolean, default: true }
 }, { timestamps: true });
-
-quizSchema.index({ category: 1 });
 
 export default mongoose.model("Quiz", quizSchema);
