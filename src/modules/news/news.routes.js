@@ -6,6 +6,7 @@ const router = express.Router();
 router.get("/fetch", manualFetch);
 router.get("/debug-clear", debugClearNews);
 router.get("/details/:id", getArticleDetails);
+router.get("/:id([0-9a-fA-F]{24})", getArticleDetails); // Alias for app compatibility
 router.get("/", getNewsByTab);
 
 export default router;

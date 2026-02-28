@@ -16,35 +16,48 @@ export const getNewsByTab = async (req, res) => {
 
         let filter = {};
 
-        // 🧠 Exclusive Tab Logic: 
-        // We ensure that articles don't overlap between tabs to respect "don't show same article in different categories"
+        /**
+         * 🛡️ STRICT EXCLUSIVITY LOGIC
+         * To prevent "same article in different categories", we define clear boundaries:
+         */
+
+        const nicheCategories = ["politics", "business", "technology", "sports", "entertainment"];
 
         if (tab === "previous") {
             filter.isToday = false;
         } else {
             // For active news tabs
             switch (tab) {
-                case "india":
-                    // Strictly India country, but we can also filter out specific categories if we want extreme exclusivity
-                    filter.country = "india";
-                    break;
-                case "world":
-                    // World view often acts as a 'General' bucket, so we filter by world country 
-                    // and skip specific niche categories to keep it clean.
-                    filter.country = "world";
-                    filter.category = { $nin: ["politics", "business", "technology", "sports", "entertainment"] };
-                    break;
-                case "current-affairs":
+                // 1. TOPIC-SPECIFIC TABS
                 case "politics":
                 case "business":
                 case "technology":
                 case "sports":
                 case "entertainment":
-                    // Filter strictly by the category provided
                     filter.category = tab;
                     break;
+
+                // 2. REGION TABS (Excludes articles already in topic tabs if possible)
+                case "india":
+                    filter.country = "india";
+                    // Only show India news that isn't already classified into a niche topic
+                    filter.category = { $nin: nicheCategories };
+                    break;
+
+                case "world":
+                    filter.country = "world";
+                    // Only show General World news (excludes niche topics)
+                    filter.category = { $nin: nicheCategories };
+                    break;
+
+                // 3. SPECIAL TAB: CURRENT AFFAIRS (Fallback/General Mix)
+                case "current-affairs":
+                    // Shows everything else that passed the 48h limit or is tagged as current-affairs
+                    filter.category = "current-affairs";
+                    break;
+
                 default:
-                    // Default view (All today)
+                    // If no tab provided, show a generalized feed
                     filter.isToday = true;
             }
         }
@@ -83,7 +96,7 @@ export const debugClearNews = async (req, res) => {
 export const getArticleDetails = async (req, res) => {
     try {
         const news = await News.findById(req.params.id);
-        if (!news) return res.status(404).json({ success: false });
+        if (!news) return res.status(404).json({ success: false, message: "Article not found" });
 
         news.views += 1;
         await news.save();
