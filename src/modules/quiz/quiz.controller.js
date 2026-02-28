@@ -88,3 +88,67 @@ export const submitAttempt = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// 👩‍💼 Admin: Get list for the table with attempt counts
+export const getAdminQuizzes = async (req, res) => {
+    try {
+        const quizzes = await Quiz.find().sort({ createdAt: -1 });
+
+        const result = await Promise.all(quizzes.map(async (q) => {
+            const attemptCount = await QuizAttempt.countDocuments({ quizId: q._id });
+            return {
+                id: q._id,
+                question: q.questions[0]?.question || q.title,
+                correctAnswer: q.questions[0]?.correctAnswer || "N/A",
+                category: q.category,
+                attempts: attemptCount,
+                date: q.createdAt.toISOString().split('T')[0],
+                active: q.active
+            };
+        }));
+
+        res.json({ success: true, quizzes: result });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ➕ Admin: Manual Create
+export const createQuiz = async (req, res) => {
+    try {
+        const { title, description, category, difficulty, questions } = req.body;
+        const quiz = await Quiz.create({
+            title: title || questions[0]?.question,
+            description,
+            category,
+            difficulty,
+            questions
+        });
+        res.status(201).json({ success: true, quiz });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ✏️ Admin: Update
+export const updateQuiz = async (req, res) => {
+    try {
+        const quiz = await Quiz.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
+        res.json({ success: true, quiz });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 🗑️ Admin: Delete
+export const deleteQuiz = async (req, res) => {
+    try {
+        const quiz = await Quiz.findByIdAndDelete(req.params.id);
+        if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
+        res.json({ success: true, message: "Quiz deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
