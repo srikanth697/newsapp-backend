@@ -19,13 +19,13 @@ const newsSchema = new mongoose.Schema({
     views: { type: Number, default: 0 },
     trendingScore: { type: Number, default: 0 },
 
-    contentHash: { type: String, unique: true }, // Logic: MD5 of raw content
-    similarityFingerprint: String // Logic: First 300 chars for similarity detection
+    contentHash: { type: String, unique: true },
+    similarityFingerprint: String
 
 }, { timestamps: true });
 
-newsSchema.index({ slug: 1 }, { unique: true });
-newsSchema.index({ contentHash: 1 }, { unique: true });
+// Schema field level 'unique: true' creates the indexes automatically.
+// We only need manual indexes for compound or sorting fields.
 newsSchema.index({ category: 1, isToday: 1 });
 newsSchema.index({ publishedAt: -1 });
 newsSchema.index({ trendingScore: -1 });
