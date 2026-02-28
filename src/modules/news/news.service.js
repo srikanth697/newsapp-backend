@@ -9,17 +9,15 @@ import { callDeepSeek } from "../../services/ai.service.js";
 const parser = new Parser();
 let isFetching = false;
 
-// 🕒 Freshness: Allow news from last 24 hours (not just calendar day)
-const isRecent = (date) => {
+// 🕒 Freshness Check
+const isRecent = (date, hours = 24) => {
     const pubDate = dayjs(date);
     const now = dayjs();
-    return pubDate.isAfter(now.subtract(24, 'hour')) || pubDate.isSame(now, 'day');
+    return pubDate.isAfter(now.subtract(hours, 'hour')) || pubDate.isSame(now, 'day');
 };
 
-// 🌐 English ONLY Check (Allow Latin characters and common punctuation)
 const isEnglish = (text) => {
     if (!text) return false;
-    // Expanded regex to allow standard Western punctuation and quotes
     const regex = /^[\u0000-\u00FF\u2010-\u205E\u2060-\u206F]*$/;
     return regex.test(text);
 };
@@ -49,13 +47,7 @@ const saveArticle = async (article) => {
         const title = article.title?.trim();
         const rawContent = article.description || article.content || title;
 
-        if (!title) return false;
-
-        // Validation 1: English Check
-        if (!isEnglish(title)) {
-            console.log(`⏩ Rejected (Language): ${title.substring(0, 30)}...`);
-            return false;
-        }
+        if (!title || !isEnglish(title)) return false;
 
         const slug = slugify(title, { lower: true, strict: true, trim: true });
         if (!slug || slug === "!") return false;
@@ -63,26 +55,20 @@ const saveArticle = async (article) => {
         const image = article.image || article.urlToImage || article.enclosure?.url;
         const publishedAt = article.publishedAt || article.pubDate;
 
-        // Validation 2: Image Check
-        if (!image) {
-            console.log(`⏩ Rejected (No Image): ${title.substring(0, 30)}...`);
-            return false;
-        }
+        if (!image || !publishedAt) return false;
 
-        // Validation 3: Date Check (24-hour window)
-        if (!publishedAt || !isRecent(publishedAt)) {
-            console.log(`⏩ Rejected (Not Recent): ${title.substring(0, 30)}... (${publishedAt})`);
-            return false;
-        }
+        // Special logic for Current Affairs (48h) vs others (24h)
+        const isCurrentAffairsCandidate = (article.category === 'current-affairs' || (article.title + (article.description || "")).toLowerCase().includes('current affairs'));
+        const hourWindow = isCurrentAffairsCandidate ? 48 : 24;
+
+        if (!isRecent(publishedAt, hourWindow)) return false;
 
         const contentHash = generateHash(rawContent);
         const similarityFingerprint = rawContent.slice(0, 300);
 
-        // 1. Similarity Check (Prevents nearly identical news from different sources)
         const simExisting = await News.findOne({ similarityFingerprint });
         if (simExisting) return false;
 
-        // 2. Atomic Upsert Check
         const result = await News.updateOne(
             { contentHash },
             {
@@ -95,7 +81,7 @@ const saveArticle = async (article) => {
                     category: "current-affairs",
                     source: article.source?.name || article.source || "Global",
                     publishedAt: new Date(publishedAt),
-                    isToday: true, // We mark recent articles as 'today' for the UI tabs
+                    isToday: true,
                     contentHash,
                     similarityFingerprint
                 }
@@ -107,7 +93,6 @@ const saveArticle = async (article) => {
             console.log(`🆕 Save Success: ${title.substring(0, 40)}...`);
 
             try {
-                // Parallel Processing for Speed
                 const [aiCategory, rewritten] = await Promise.all([
                     detectCategoryWithAI(title, rawContent),
                     callDeepSeek(
@@ -153,7 +138,6 @@ export const fetchFromGNews = async () => {
         }
         return count;
     } catch (e) {
-        console.error("GNews Error:", e.response?.data || e.message);
         return 0;
     }
 };
@@ -168,7 +152,6 @@ export const fetchFromNewsAPI = async () => {
         }
         return count;
     } catch (e) {
-        console.error("NewsAPI Error:", e.response?.data || e.message);
         return 0;
     }
 };
@@ -181,33 +164,19 @@ export const fetchFromRSS = async () => {
         for (const item of feed.items) if (await saveArticle(item)) count++;
         return count;
     } catch (e) {
-        console.error("RSS Error:", e.message);
         return 0;
     }
 };
 
 export const runCronFetch = async () => {
-    if (isFetching) return console.log("⏳ Fetch job already running.");
+    if (isFetching) return;
     isFetching = true;
-
     try {
         console.log("🔁 Starting Multi-Layer News Fetch...");
-
         let count = await fetchFromGNews();
-        // If GNews hits limit or is empty, try NewsAPI
-        if (count === 0) {
-            console.log("🔄 GNews zero result. Switching to NewsAPI fallback...");
-            count = await fetchFromNewsAPI();
-        }
-        // If both failed, try RSS
-        if (count === 0) {
-            console.log("🔄 Fallback to RSS...");
-            count = await fetchFromRSS();
-        }
-
+        if (count === 0) count = await fetchFromNewsAPI();
+        if (count === 0) count = await fetchFromRSS();
         console.log(`🏁 Fetch cycle finished. Articles added: ${count}`);
-    } catch (error) {
-        console.error("Global Fetch Error:", error.message);
     } finally {
         isFetching = false;
     }
