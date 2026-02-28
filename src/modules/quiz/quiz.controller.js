@@ -40,7 +40,9 @@ export const getCategories = async (req, res) => {
 // 🎯 Returns a single quiz with all questions
 export const getQuiz = async (req, res) => {
     try {
-        const { id } = req.query; // Usually passed as ?id=...
+        const id = req.params.id || req.query.id;
+
+        if (!id) throw new Error("Quiz ID is required");
 
         const quiz = await Quiz.findById(id).populate('newsId', 'title');
 
