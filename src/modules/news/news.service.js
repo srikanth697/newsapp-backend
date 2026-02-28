@@ -34,7 +34,7 @@ const KEYWORD_MAP = {
     technology: ["tech", "iphone", "apple", "google", "microsoft", "silicon", "semiconductor", "cyber", "ai", "artificial intelligence", "robot", "gadget", "software", "whatsapp", "meta", "nvidia", "openai"],
     business: ["market", "stock", "shares", "sensex", "nifty", "economy", "startup", "founder", "billionaire", "bank", "finance", "ceo", "investment", "tax", "budget", "gdp"],
     politics: ["election", "modi", "minister", "parliament", "congress", "bjp", "government", "policy", "visa", "diplomatic", "treaty", "senate", "candidate"],
-    entertainment: ["movie", "bollywood", "hollywood", "ott", "netflix", "trailer", "actor", "actress", "celebrity", "cinema", "film", "concert", "music", "pop star", "fashion", "vogue"]
+    entertainment: ["movie", "bollywood", "hollywood", "ott", "netflix", "trailer", "actor", "actress", "celebrity", "cinema", "film", "concert", "music", "pop star", "fashion", "vogue", "paparazzi", "showbiz", "theatre", "box office"]
 };
 
 const detectCategoryLocally = (title, content) => {
@@ -69,7 +69,10 @@ const saveArticle = async (article, forceCategory = null) => {
         if (await News.findOne({ similarityFingerprint: rawContent.slice(0, 300) })) return false;
 
         const cat = forceCategory || detectCategoryLocally(title, rawContent);
-        const isIndia = (title + rawContent).toLowerCase().match(/india|delhi|mumbai|indian|chennai|kolkata|karnataka|kerala|gujarat|surat|pune/);
+
+        // 🇮🇳 Robust India Detection
+        const indiaKeywords = ["india", "delhi", "mumbai", "indian", "chennai", "kolkata", "karnataka", "kerala", "gujarat", "surat", "pune", "hyderabad", "bangalore", "bengaluru", "modi", "shah", "rahul gandhi", "bjp", "congress", "isro", "bharat"];
+        const isIndia = indiaKeywords.some(kw => (title + rawContent).toLowerCase().includes(kw));
 
         const newArt = await News.create({
             title,
@@ -86,7 +89,7 @@ const saveArticle = async (article, forceCategory = null) => {
             similarityFingerprint: rawContent.slice(0, 300)
         });
 
-        console.log(`🆕 Save [${cat.toUpperCase()}]: ${title.substring(0, 30)}...`);
+        console.log(`🆕 Save [${cat.toUpperCase()}] [${isIndia ? 'INDIA' : 'WORLD'}]: ${title.substring(0, 30)}...`);
 
         // Trigger AI Rewrite (Background)
         callDeepSeek(
@@ -111,14 +114,13 @@ export const runCronFetch = async () => {
     try {
         console.log("🔁 Deep Fetch: Categorized Polling Start...");
         const categories = ["business", "entertainment", "general", "health", "science", "sports", "technology"];
-        const countries = ["in", "us"];
 
         // 1. NewsAPI: Fetch from each category to ensure variety
         for (const cat of categories) {
             try {
                 const res = await axios.get(`https://newsapi.org/v2/top-headlines?category=${cat}&language=en&apiKey=${process.env.NEWS_API_KEY}`);
                 if (res.data.articles) {
-                    for (const art of res.data.articles) await saveArticle(art);
+                    for (const art of res.data.articles) await saveArticle(art, cat === "general" ? null : cat);
                 }
             } catch (err) { }
         }
@@ -140,6 +142,21 @@ export const runCronFetch = async () => {
         console.log("🏁 Deep Fetch Cycle Complete.");
     } finally {
         isFetching = false;
+    }
+};
+
+// 🧹 Clean up logic for midnight
+export const updateDailyStatus = async () => {
+    try {
+        console.log("🧹 Running midnight cleanup: Moving Today news to Previous...");
+        const startOfToday = dayjs().startOf('day').toDate();
+        const result = await News.updateMany(
+            { publishedAt: { $lt: startOfToday }, isToday: true },
+            { isToday: false }
+        );
+        console.log(`✅ Cleanup complete. Moved ${result.modifiedCount} articles to Previous.`);
+    } catch (err) {
+        console.error("Cleanup Error:", err.message);
     }
 };
 

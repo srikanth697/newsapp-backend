@@ -35,29 +35,28 @@ export const getNewsByTab = async (req, res) => {
                 case "sports":
                 case "entertainment":
                     filter.category = tab;
+                    filter.isToday = true;
                     break;
 
-                // 2. REGION TABS (Excludes articles already in topic tabs if possible)
+                // 2. REGION TABS (No longer excludes category-specific news)
                 case "india":
                     filter.country = "india";
-                    // Only show India news that isn't already classified into a niche topic
-                    filter.category = { $nin: nicheCategories };
+                    filter.isToday = true;
                     break;
 
                 case "world":
                     filter.country = "world";
-                    // Only show General World news (excludes niche topics)
-                    filter.category = { $nin: nicheCategories };
+                    filter.isToday = true;
                     break;
 
                 // 3. SPECIAL TAB: CURRENT AFFAIRS (Fallback/General Mix)
                 case "current-affairs":
-                    // Shows everything else that passed the 48h limit or is tagged as current-affairs
                     filter.category = "current-affairs";
+                    filter.isToday = true;
                     break;
 
                 default:
-                    // If no tab provided, show a generalized feed
+                    // Default view (All today)
                     filter.isToday = true;
             }
         }
