@@ -16,31 +16,37 @@ export const getNewsByTab = async (req, res) => {
 
         let filter = {};
 
-        switch (tab) {
-            case "previous":
-                filter.isToday = false;
-                break;
-            case "india":
-                filter.isToday = true;
-                filter.country = "india";
-                break;
-            case "world":
-                filter.isToday = true;
-                filter.country = "world";
-                break;
-            case "current-affairs":
-            case "politics":
-            case "business":
-            case "technology":
-            case "sports":
-            case "entertainment":
-                filter.isToday = true;
-                filter.category = tab;
-                break;
-            default:
-                filter.isToday = true;
-                // If specific category provided in tab but not handled above, try to match it
-                if (tab && tab !== 'all') filter.category = tab;
+        // 🧠 Logic: 
+        // 1. If 'previous', show articles where isToday is false.
+        // 2. Otherwise, we show ALL articles (because they are within our 24h-48h 'recent' window)
+        // 3. We then apply specific sub-filters like country or category.
+
+        if (tab === "previous") {
+            filter.isToday = false;
+        } else {
+            // For all other tabs, we don't strictly enforce isToday: true 
+            // since we already filtered by 'recent' in the service layer.
+            // This ensures data shows up regardless of calendar day crossovers.
+
+            switch (tab) {
+                case "india":
+                    filter.country = "india";
+                    break;
+                case "world":
+                    filter.country = "world";
+                    break;
+                case "current-affairs":
+                case "politics":
+                case "business":
+                case "technology":
+                case "sports":
+                case "entertainment":
+                    filter.category = tab;
+                    break;
+                default:
+                    // Default view (World/All today)
+                    if (tab && tab !== 'all') filter.category = tab;
+            }
         }
 
         console.log(`📝 Applied DB Filter:`, JSON.stringify(filter));
@@ -75,10 +81,14 @@ export const debugClearNews = async (req, res) => {
 };
 
 export const getArticleDetails = async (req, res) => {
-    const news = await News.findById(req.params.id);
-    if (!news) return res.status(404).json({ success: false });
+    try {
+        const news = await News.findById(req.params.id);
+        if (!news) return res.status(404).json({ success: false });
 
-    news.views += 1;
-    await news.save();
-    res.json({ success: true, news });
+        news.views += 1;
+        await news.save();
+        res.json({ success: true, news });
+    } catch (error) {
+        res.status(400).json({ success: false, message: "Invalid ID format" });
+    }
 };
