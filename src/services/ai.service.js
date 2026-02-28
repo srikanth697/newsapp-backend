@@ -14,7 +14,7 @@ export const callDeepSeek = async (systemPrompt, userPrompt) => {
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
                 ],
-                temperature: 0.7,
+                temperature: 0.4,
                 max_tokens: 1500
             },
             {

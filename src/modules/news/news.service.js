@@ -2,137 +2,169 @@ import axios from "axios";
 import slugify from "slugify";
 import Parser from "rss-parser";
 import dayjs from "dayjs";
+import crypto from "crypto";
 import News from "./news.model.js";
 import { callDeepSeek } from "../../services/ai.service.js";
 
 const parser = new Parser();
-let isFetching = false; // Prevents cron overlap
+let isFetching = false;
 
-const isPublishedToday = (date) => dayjs(date).isSame(dayjs(), "day");
+const isToday = (date) => dayjs(date).isSame(dayjs(), "day");
 
-const CATEGORY_MAP = {
-    sports: ["cricket", "ipl", "football", "olympics", "fifa", "bcci", "tennis", "wimbledon", "athlete"],
-    technology: ["tech", "iphone", "software", "ai", "gadget", "silicon", "semiconductor", "cyber", "robotics", "app"],
-    business: ["market", "stock", "sensex", "nifty", "economy", "startup", "investing", "finance", "ceo", "shares"],
-    politics: ["election", "modi", "minister", "parliament", "congress", "bjp", "democracy", "government", "policy"],
-    entertainment: ["bollywood", "hollywood", "movie", "celebrity", "actor", "actress", "cinema", "trailer", "streaming"],
-    india: ["delhi", "mumbai", "india", "isro", "bharat"]
+// 🌐 English ONLY Check (Regular Expression for Basic Latin characters)
+const isEnglish = (text) => /^[\x00-\x7F]*$/.test(text);
+
+const generateHash = (content) =>
+    crypto.createHash("md5").update(content).digest("hex");
+
+const calculateTrendingScore = (views, publishedAt) => {
+    const hoursOld = dayjs().diff(dayjs(publishedAt), "hour");
+    return Math.max(100 - hoursOld, 0) + (views * 2);
 };
 
-const detectCategory = (article) => {
-    // 1. Check API source category if available
-    const apiCat = (article.category || article.topic || "").toLowerCase();
-    if (["sports", "entertainment", "politics", "business", "technology"].includes(apiCat)) {
-        return { category: apiCat, country: "india" };
+// 🧠 AI Intelligence: Category Detection
+const detectCategoryWithAI = async (title, content) => {
+    try {
+        const prompt = `Classify this news into exactly one category: politics, business, technology, sports, entertainment, current-affairs. Return only the category word.\n\nTitle: ${title}\nContent Snippet: ${content.substring(0, 300)}`;
+        const result = await callDeepSeek("You are a news classification AI.", prompt);
+        return result.trim().toLowerCase().split(' ')[0].replace(/[^a-z-]/g, "");
+    } catch (e) {
+        return "current-affairs";
     }
-
-    // 2. Keyword check
-    const text = `${article.title} ${article.description || ""}`.toLowerCase();
-    for (const [cat, keywords] of Object.entries(CATEGORY_MAP)) {
-        if (keywords.some(kw => text.includes(kw))) {
-            return { category: cat, country: cat === "india" ? "india" : "world" };
-        }
-    }
-
-    return { category: "current-affairs", country: "world" };
 };
 
 const saveArticle = async (article) => {
     try {
         const title = article.title?.trim();
-        if (!title) return;
+        const rawContent = article.description || article.content || title;
 
-        // 1. Professional Slug Generation
-        const cleanSlug = slugify(title, { lower: true, strict: true, trim: true });
-        if (!cleanSlug || cleanSlug === "!") return;
+        // 1. Language & Content Guards
+        if (!title || !isEnglish(title)) return false;
+
+        const slug = slugify(title, { lower: true, strict: true, trim: true });
+        if (!slug || slug === "!") return false;
 
         const image = article.image || article.urlToImage || article.enclosure?.url;
         const publishedAt = article.publishedAt || article.pubDate;
 
-        // Validation
-        if (!image || !publishedAt || !isPublishedToday(publishedAt)) return;
+        if (!image || !publishedAt || !isToday(publishedAt)) return false;
 
-        const { category, country } = detectCategory(article);
+        // 2. Multi-Layer Duplicate Detection
+        const contentHash = generateHash(rawContent);
+        const similarityFingerprint = rawContent.slice(0, 300);
 
-        // 2. Atomic Upsert Check (Race Condition Safe)
+        // Check fingerprint (Similiarity)
+        const simExisting = await News.findOne({ similarityFingerprint });
+        if (simExisting) return false;
+
+        // 3. Atomic Upsert Strategy
         const result = await News.updateOne(
-            { slug: cleanSlug },
+            { contentHash },
             {
                 $setOnInsert: {
                     title,
-                    slug: cleanSlug,
+                    slug,
                     shortDescription: article.description || title,
-                    rewrittenContent: article.description || article.content || title, // Temp placeholder
+                    rewrittenContent: "Processing AI Rewrite...",
                     image,
-                    category,
-                    country,
-                    source: article.source?.name || article.source || "Global News",
+                    category: "current-affairs", // Temp default
+                    source: article.source?.name || article.source || "Global",
                     publishedAt: new Date(publishedAt),
-                    isToday: true
+                    isToday: true,
+                    contentHash,
+                    similarityFingerprint
                 }
             },
             { upsert: true }
         );
 
-        // 3. Rewrite only if inserted
+        // 4. Post-Insert Enrichment (AI Rewrite + AI Category)
         if (result.upsertedCount > 0) {
-            console.log(`🆕 New Article Inserted: ${cleanSlug}. Triggering AI Rewrite...`);
+            console.log(`🆕 Processing: ${title.substring(0, 40)}...`);
 
-            try {
-                const rewritten = await callDeepSeek(
-                    "You are a professional journalist. Rewrite any news (translating to English if non-English) into a professional 400-500 word report. Use proper paragraphs and neutal tone.",
-                    `Source Title: ${title}\nRaw Content: ${article.description || article.content}`
+            // Parallel AI tasks
+            const [aiCategory, rewritten] = await Promise.all([
+                detectCategoryWithAI(title, rawContent),
+                callDeepSeek(
+                    "You are a professional journalist. Rewrite this news into professional English (400-500 words). Maintain factual accuracy. No plagiarism.",
+                    rawContent
+                )
+            ]).catch(() => ["current-affairs", null]);
+
+            if (rewritten) {
+                await News.updateOne(
+                    { contentHash },
+                    {
+                        $set: {
+                            rewrittenContent: rewritten,
+                            category: aiCategory,
+                            aiCategory,
+                            trendingScore: calculateTrendingScore(0, publishedAt)
+                        }
+                    }
                 );
-
-                if (rewritten) {
-                    await News.updateOne({ slug: cleanSlug }, { $set: { rewrittenContent: rewritten } });
-                    console.log(`✨ AI Rewrite Success: ${cleanSlug}`);
-                }
-            } catch (aiError) {
-                console.warn(`⚠️ AI Rewrite Failed for ${cleanSlug}: ${aiError.message}`);
+                console.log(`✅ Fully Optimized: ${title.substring(0, 30)}`);
             }
-        } else {
-            // console.log(`⏩ Duplicate Skipped (Slug Match): ${cleanSlug}`);
+            return true;
         }
 
+        return false;
     } catch (err) {
-        if (err.code !== 11000) { // Ignore duplicate key errors if index catches it first
-            console.error(`❌ Save Error: ${err.message}`);
-        }
+        if (err.code !== 11000) console.error("Save Error:", err.message);
+        return false;
     }
 };
 
 export const fetchFromGNews = async () => {
-    const url = `https://gnews.io/api/v4/top-headlines?country=in&lang=en&token=${process.env.GNEWS_API_KEY}`;
-    const res = await axios.get(url);
-    for (const art of res.data.articles) await saveArticle(art);
+    console.log("📡 Checking GNews...");
+    const res = await axios.get(`https://gnews.io/api/v4/top-headlines?country=in&lang=en&token=${process.env.GNEWS_API_KEY}`);
+    let count = 0;
+    for (const art of res.data.articles) if (await saveArticle(art)) count++;
+    return count;
 };
 
 export const fetchFromNewsAPI = async () => {
-    const url = `https://newsapi.org/v2/top-headlines?country=in&language=en&apiKey=${process.env.NEWS_API_KEY}`;
-    const res = await axios.get(url);
-    for (const art of res.data.articles) await saveArticle(art);
+    console.log("📡 Checking NewsAPI...");
+    const res = await axios.get(`https://newsapi.org/v2/top-headlines?country=in&language=en&apiKey=${process.env.NEWS_API_KEY}`);
+    let count = 0;
+    for (const art of res.data.articles) if (await saveArticle(art)) count++;
+    return count;
 };
 
 export const fetchFromRSS = async () => {
+    console.log("📡 Checking BBC RSS...");
     const feed = await parser.parseURL("https://feeds.bbci.co.uk/news/rss.xml");
-    for (const item of feed.items) await saveArticle(item);
+    let count = 0;
+    for (const item of feed.items) if (await saveArticle(item)) count++;
+    return count;
 };
 
 export const runCronFetch = async () => {
-    if (isFetching) return console.log("⏳ Fetch already in progress. Skipping...");
+    if (isFetching) return;
     isFetching = true;
 
-    console.log("⏰ Starting Race-Safe Fetch Cycle...");
     try {
-        await fetchFromGNews();
-        await fetchFromNewsAPI();
-        await fetchFromRSS();
+        console.log("🔁 Starting Intelligent Fetch Cycle...");
+
+        let count = await fetchFromGNews();
+
+        // Smart Fallback only if no fresh articles found
+        if (count === 0) {
+            console.log("⚠️ GNews yielded no new articles. Trying NewsAPI...");
+            count = await fetchFromNewsAPI();
+        }
+
+        if (count === 0) {
+            console.log("⚠️ Still nothing. Checking RSS fallback...");
+            count = await fetchFromRSS();
+        }
+
+        console.log(`🏁 Cycle Complete. Fresh articles added: ${count}`);
     } catch (error) {
-        console.error("Cron Execution Failure:", error.message);
+        console.error("Fetch Cycle Error:", error.message);
     } finally {
         isFetching = false;
     }
 };
 
-export const fetchAllNews = runCronFetch; // Alias for compatibility
+export const fetchAllNews = runCronFetch; // Compatibility

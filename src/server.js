@@ -11,10 +11,9 @@ const PORT = process.env.PORT || 5000;
 // Connect MongoDB
 connectDB();
 
-// 🔥 Auto Cron: Fetch news every 30 minutes
-// Non-blocking, Race-Safe protected
-cron.schedule("*/30 * * * *", () => {
-    console.log("⏰ [CRON] Triggering automated news pipeline...");
+// 🔥 Auto Cron: Fetch news every 10 minutes
+cron.schedule("*/10 * * * *", () => {
+    console.log("⏰ [CRON] Triggering Intelligent News Engine (10m Cycle)...");
     runCronFetch().catch(err => console.error("Cron Process Error:", err.message));
 });
 
