@@ -9,6 +9,7 @@ import {
     updateProfile,
     updateSettings,
     googleLogin,
+    adminLogin,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 

@@ -110,7 +110,45 @@ export const login = async (req, res) => {
                 name: user.fullName,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                image: user.avatar || ""
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/* =========================
+   ADMIN LOGIN
+========================= */
+export const adminLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Admin account not found" });
+        }
+
+        if (user.role !== "admin") {
+            return res.status(403).json({ success: false, message: "Access denied. Not an admin." });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Invalid credentials" });
+        }
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+        res.json({
+            success: true,
+            token,
+            admin: {
+                id: user._id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {

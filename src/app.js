@@ -7,6 +7,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import newsRoutes from "./modules/news/news.routes.js";
 import quizRoutes from "./modules/quiz/quiz.routes.js";
+import { adminLogin } from "./controllers/authController.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -21,6 +22,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/language", languageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/settings", settingsRoutes);
+app.post("/api/admin/login", adminLogin);
 app.use("/api/news", newsRoutes);
 app.use("/api/unified", newsRoutes);
 app.use("/api/quiz", quizRoutes); // New Quiz System
