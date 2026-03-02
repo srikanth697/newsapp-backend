@@ -5,6 +5,7 @@ import languageRoutes from "./routes/languageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 import newsRoutes from "./modules/news/news.routes.js";
 import quizRoutes from "./modules/quiz/quiz.routes.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -23,6 +24,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/language", languageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/categories", categoryRoutes);
 app.post("/api/admin/login", adminLogin);
 app.use("/api/admin", adminRoutes); // Add this
 app.use("/api/news", newsRoutes);

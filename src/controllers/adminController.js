@@ -1,6 +1,7 @@
 import News from "../modules/news/news.model.js";
 import User from "../models/User.js";
 import Quiz from "../modules/quiz/quiz.model.js";
+import Category from "../models/Category.js";
 import Notification from "../models/Notification.js";
 import Submission from "../models/Submission.js";
 import slugify from "slugify";
@@ -13,6 +14,9 @@ export const getDashboardData = async (req, res) => {
         const totalNews = await News.countDocuments();
         const totalUsers = await User.countDocuments();
         const totalQuizzes = await Quiz.countDocuments();
+        const totalCategories = await Category.countDocuments();
+        const userSubmitted = await Submission.countDocuments({ status: "pending" });
+        const fakeNews = await Submission.countDocuments({ status: "fake" });
 
         // Mock analytics for the chart if real historical data isn't tracked yet
         const analytics = {
@@ -25,8 +29,9 @@ export const getDashboardData = async (req, res) => {
             totalNews,
             totalUsers,
             totalQuizzes,
-            userSubmitted: 5, // Mock pending submissions
-            fakeNews: 2,      // Mock fake news reports
+            totalCategories,
+            userSubmitted,
+            fakeNews,
             growth: {
                 news: 12,
                 users: 25,
@@ -198,6 +203,17 @@ export const getUserStats = async (req, res) => {
                 growth: 15
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+export const getSingleUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select("-password");
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        res.json({ success: true, user });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

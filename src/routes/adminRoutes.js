@@ -4,6 +4,7 @@ import {
     getSubmissions,
     getSubmissionStats,
     getUsers,
+    getSingleUser,
     getUserStats,
     getAdminNews,
     getSingleAdminNews,
@@ -50,6 +51,7 @@ router.put("/submissions/:id/mark-fake", markFakeSubmission);
 // Users
 router.get("/users", getUsers);
 router.get("/users/stats", getUserStats);
+router.get("/users/:id", getSingleUser);
 
 // News Management
 router.get("/news", getAdminNews);
