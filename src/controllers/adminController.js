@@ -2,6 +2,8 @@ import News from "../modules/news/news.model.js";
 import User from "../models/User.js";
 import Quiz from "../modules/quiz/quiz.model.js";
 import Notification from "../models/Notification.js";
+import Submission from "../models/Submission.js";
+import slugify from "slugify";
 
 /* =========================
    DASHBOARD DATA
@@ -61,35 +63,29 @@ export const getDashboardData = async (req, res) => {
 export const getSubmissions = async (req, res) => {
     try {
         const { status, page = 1, limit = 10, search = "" } = req.query;
+        let query = {};
 
-        // Since we don't have a Submissions model, let's assume it's News with a specific status
-        // or just return empty for now if no model exists, but that would break the UI.
-        // For now, I'll return a mock list to unblock the frontend, or find where submissions live.
+        if (status) query.status = status;
+        if (search) query.title = { $regex: search, $options: "i" };
 
-        const mockSubmissions = [
-            {
-                _id: "sub_1",
-                title: "Local Community Event in New York",
-                description: "A large gathering happened at Central Park today...",
-                imageUrl: "https://images.unsplash.com/photo-1543269664-56d93c1b41a6",
-                author: { fullName: "John Doe" },
-                aiDetection: "Real",
-                aiScore: 0.95,
-                status: status || "pending",
-                createdAt: new Date()
-            }
-        ];
+        const submissions = await Submission.find(query)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const total = await Submission.countDocuments(query);
+        const stats = {
+            pending: await Submission.countDocuments({ status: "pending" }),
+            approved: await Submission.countDocuments({ status: "approved" }),
+            rejected: await Submission.countDocuments({ status: "rejected" }),
+            fake: await Submission.countDocuments({ status: "fake" })
+        };
 
         res.json({
             success: true,
-            submissions: mockSubmissions,
-            total: 12,
-            stats: {
-                pending: 5,
-                approved: 120,
-                rejected: 15,
-                fake: 2
-            }
+            submissions,
+            total,
+            stats
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -98,15 +94,74 @@ export const getSubmissions = async (req, res) => {
 
 export const getSubmissionStats = async (req, res) => {
     try {
-        res.json({
-            success: true,
-            stats: {
-                pending: 5,
-                approved: 125,
-                rejected: 15,
-                fake: 2
-            }
+        const stats = {
+            pending: await Submission.countDocuments({ status: "pending" }),
+            approved: await Submission.countDocuments({ status: "approved" }),
+            rejected: await Submission.countDocuments({ status: "rejected" }),
+            fake: await Submission.countDocuments({ status: "fake" })
+        };
+        res.json({ success: true, stats });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const approveSubmission = async (req, res) => {
+    try {
+        const submission = await Submission.findById(req.params.id);
+        if (!submission) return res.status(404).json({ success: false, message: "Submission not found" });
+
+        submission.status = "approved";
+        submission.approvedBy = req.userId;
+        submission.approvedAt = new Date();
+        await submission.save();
+
+        // Create a News entry from the approved submission
+        const slug = slugify(submission.title, { lower: true, strict: true });
+
+        await News.create({
+            title: submission.title,
+            slug,
+            shortDescription: submission.description,
+            rewrittenContent: submission.content || submission.description,
+            image: submission.imageUrl || "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=1000",
+            category: submission.category,
+            source: "User Submitted",
+            author: submission.author?.fullName || "Community Contributor",
+            publishedAt: new Date(),
+            isToday: true
         });
+
+        res.json({ success: true, message: "Submission approved and published as news." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const rejectSubmission = async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const submission = await Submission.findByIdAndUpdate(
+            req.params.id,
+            { status: "rejected", rejectionReason: reason },
+            { new: true }
+        );
+        if (!submission) return res.status(404).json({ success: false, message: "Submission not found" });
+        res.json({ success: true, message: "Submission rejected." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const markFakeSubmission = async (req, res) => {
+    try {
+        const submission = await Submission.findByIdAndUpdate(
+            req.params.id,
+            { status: "fake" },
+            { new: true }
+        );
+        if (!submission) return res.status(404).json({ success: false, message: "Submission not found" });
+        res.json({ success: true, message: "Submission marked as fake news." });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -143,6 +198,95 @@ export const getUserStats = async (req, res) => {
                 growth: 15
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/* =========================
+   NEWS MANAGEMENT
+========================= */
+export const getAdminNews = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = "" } = req.query;
+        const query = search ? { title: { $regex: search, $options: "i" } } : {};
+
+        const news = await News.find(query)
+            .sort({ publishedAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const total = await News.countDocuments(query);
+
+        res.json({
+            success: true,
+            news,
+            total,
+            pages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const createAdminNews = async (req, res) => {
+    try {
+        const { title, shortDescription, rewrittenContent, image, category, country, publishedAt, source, author } = req.body;
+
+        if (!title || !image || !category) {
+            return res.status(400).json({ success: false, message: "Title, image, and category are required" });
+        }
+
+        const slug = slugify(title, { lower: true, strict: true });
+
+        const news = await News.create({
+            title,
+            slug,
+            shortDescription: shortDescription || title,
+            rewrittenContent: rewrittenContent || "Content coming soon...",
+            image,
+            category,
+            country: country || "world",
+            source: source || "Admin Manual",
+            author: author || "Admin",
+            publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
+            isToday: true
+        });
+
+        res.status(201).json({ success: true, news });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getSingleAdminNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const news = await News.findById(id);
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+        res.json({ success: true, news });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateAdminNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const news = await News.findByIdAndUpdate(id, req.body, { new: true });
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+        res.json({ success: true, news });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const deleteAdminNews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const news = await News.findByIdAndDelete(id);
+        if (!news) return res.status(404).json({ success: false, message: "News not found" });
+        res.json({ success: true, message: "News deleted successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
