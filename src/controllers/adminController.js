@@ -5,6 +5,7 @@ import Category from "../models/Category.js";
 import Notification from "../models/Notification.js";
 import Submission from "../models/Submission.js";
 import slugify from "slugify";
+import bcrypt from "bcryptjs";
 
 /* =========================
    DASHBOARD DATA
@@ -303,6 +304,96 @@ export const deleteAdminNews = async (req, res) => {
         const news = await News.findByIdAndDelete(id);
         if (!news) return res.status(404).json({ success: false, message: "News not found" });
         res.json({ success: true, message: "News deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/* =========================
+   ADMIN PROFILE
+========================= */
+export const getAdminProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select("-password");
+        if (!user) return res.status(404).json({ success: false, message: "Admin profile not found" });
+
+        res.json({
+            success: true,
+            admin: {
+                id: user._id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role,
+                image: user.avatar || "",
+                phone: user.phone || ""
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateAdminProfile = async (req, res) => {
+    try {
+        const { fullName, email, password, phone } = req.body;
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ success: false, message: "Admin profile not found" });
+
+        if (fullName) user.fullName = fullName;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (password) user.password = await bcrypt.hash(password, 10);
+
+        await user.save();
+        res.json({ success: true, message: "Admin profile updated successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/* =========================
+   CATEGORY MANAGEMENT
+========================= */
+export const getAdminCategories = async (req, res) => {
+    try {
+        const categories = await Category.find().sort({ name: 1 });
+        res.json({ success: true, categories });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const createAdminCategory = async (req, res) => {
+    try {
+        const { name, icon, color, description } = req.body;
+        if (!name) return res.status(400).json({ success: false, message: "Name is required" });
+
+        const slug = slugify(name, { lower: true, strict: true });
+        const category = await Category.create({ name, slug, icon, color, description });
+
+        res.status(201).json({ success: true, category });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateAdminCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+        if (name) req.body.slug = slugify(name, { lower: true, strict: true });
+
+        const category = await Category.findByIdAndUpdate(id, req.body, { new: true });
+        res.json({ success: true, category });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const deleteAdminCategory = async (req, res) => {
+    try {
+        await Category.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: "Category deleted" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
