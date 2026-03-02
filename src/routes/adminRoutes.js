@@ -18,6 +18,7 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { getAdminQuizzes, createQuiz, updateQuiz, deleteQuiz } from "../modules/quiz/quiz.controller.js";
 import { getAllNotifications, sendNotification, deleteNotification } from "../controllers/notificationController.js";
 import { getSystemSettings, updateSystemSettings } from "../controllers/settingsController.js";
+import { getProfile, updateProfile } from "../controllers/authController.js";
 import multer from "multer";
 
 // Configure simple storage for admin-sent notification images
@@ -71,5 +72,9 @@ router.delete("/notifications/:id", deleteNotification);
 // System Settings
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
+
+// Admin Profile Management
+router.get("/profile", getProfile);
+router.put("/profile", updateProfile);
 
 export default router;
