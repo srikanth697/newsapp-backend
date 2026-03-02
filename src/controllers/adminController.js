@@ -178,10 +178,27 @@ export const markFakeSubmission = async (req, res) => {
 ========================= */
 export const getUsers = async (req, res) => {
     try {
-        const users = await User.find().select("-password").limit(10);
+        const { page = 1, limit = 10 } = req.query;
+        const users = await User.find()
+            .select("-password")
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const formattedUsers = users.map(user => ({
+            _id: user._id,
+            name: user.fullName,
+            email: user.email,
+            phone: user.phone || "N/A",
+            role: user.role,
+            status: user.status || "active",
+            joinedAt: user.createdAt.toISOString().split('T')[0],
+            avatar: user.avatar || ""
+        }));
+
         res.json({
             success: true,
-            users,
+            users: formattedUsers,
             total: await User.countDocuments()
         });
     } catch (error) {
