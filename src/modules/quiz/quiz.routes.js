@@ -1,6 +1,6 @@
 import express from "express";
 import { getQuiz, generateCustomQuiz, submitAttempt, getCategories, getAdminQuizzes, createQuiz, updateQuiz, deleteQuiz } from "./quiz.controller.js";
-import { protect, adminOnly } from "../../middleware/authMiddleware.js";
+import { protect, adminOnly, optionalAuth } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -17,6 +17,6 @@ router.get("/:id([0-9a-fA-F]{24})", getQuiz);
 router.put("/:id([0-9a-fA-F]{24})", protect, adminOnly, updateQuiz); // Allow direct PUT without /admin prefix
 router.get("/", getQuiz);
 router.post("/generate-from-url", generateCustomQuiz);
-router.post("/submit", protect, submitAttempt);
+router.post("/submit", optionalAuth, submitAttempt);
 
 export default router;

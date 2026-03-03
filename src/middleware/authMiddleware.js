@@ -42,6 +42,35 @@ export const protect = async (req, res, next) => {
     }
 };
 
+// 🛡️ Middleware: Optionally Verify JWT (Allow guests)
+export const optionalAuth = async (req, res, next) => {
+    let token;
+
+    if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith("Bearer")
+    ) {
+        try {
+            token = req.headers.authorization.split(" ")[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const userId = decoded.id || decoded.userId;
+
+            if (userId) {
+                req.user = await User.findById(userId).select("-password");
+                if (req.user) {
+                    req.userId = req.user._id;
+                }
+            }
+        } catch (error) {
+            console.error("Optional Auth Middleware Error:", error.message);
+            // Ignore errors for optional auth
+        }
+    }
+
+    // Always call next(), whether token exists/is valid or not
+    next();
+};
+
 // 👮 Middleware: Check if User is Admin
 export const adminOnly = (req, res, next) => {
     if (req.user && req.user.role === "admin") {
