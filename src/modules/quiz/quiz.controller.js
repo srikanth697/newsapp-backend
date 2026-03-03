@@ -14,13 +14,13 @@ export const getCategories = async (req, res) => {
 
         const result = quizzes.map((q) => {
             return {
-                quizId: q._id,
+                _id: q._id,
                 title: q.title || `${q.category.toUpperCase()} QUIZ`,
                 description: q.description || `Test your knowledge on ${q.category}.`,
                 category: q.category,
                 difficulty: q.difficulty || "medium",
                 image: q.image || q.newsId?.image || "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=1000",
-                totalQuestions: q.questions?.length || 0,
+                questionCount: q.questions?.length || 0,
                 createdAt: q.createdAt
             };
         });
@@ -29,7 +29,7 @@ export const getCategories = async (req, res) => {
 
         res.json({
             success: true,
-            categories: result // App currently expects this key "categories"
+            quizzes: result
         });
     } catch (error) {
         console.error("❌ Quiz Controller Error:", error);
@@ -48,13 +48,26 @@ export const getQuiz = async (req, res) => {
 
         if (!quiz) throw new Error("Quiz not found");
 
+        // Map questions to fields Flutter's QuizQuestion.fromJson expects
+        const mappedQuestions = quiz.questions.map((q, index) => ({
+            _id: q._id,
+            questionNumber: index + 1,
+            questionText: q.question,
+            options: q.options,
+            correctOptionIndex: q.options.indexOf(q.correctAnswer),
+            explanation: q.explanation || ''
+        }));
+
         res.json({
             success: true,
-            quizId: quiz._id,
+            _id: quiz._id,
             title: quiz.title,
+            description: quiz.description || '',
             category: quiz.category,
+            difficulty: quiz.difficulty || 'medium',
+            image: quiz.image || quiz.newsId?.image || null,
             headline: quiz.newsId?.title || quiz.title,
-            questions: quiz.questions
+            questions: mappedQuestions
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
