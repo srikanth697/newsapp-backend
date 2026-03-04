@@ -6,7 +6,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
-import newsRoutes from "./modules/news/news.routes.js";
+import newsRoutes from "./routes/newsRoutes.js";
 import quizRoutes from "./modules/quiz/quiz.routes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import { adminLogin } from "./controllers/authController.js";
@@ -47,6 +47,11 @@ app.use((err, req, res, next) => {
         error: err.message || "Internal Server Error",
         stack: process.env.NODE_ENV === "production" ? null : err.stack,
     });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message || "Internal Server Error" });
 });
 
 export default app;
