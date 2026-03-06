@@ -3,7 +3,9 @@ import newsController from "../controllers/newsController.js";
 
 const router = express.Router();
 
-router.get("/fetch", newsController.fetchAndSaveNews);
+router.get("/", newsController.getNewsByTab);
+router.get("/fetch", newsController.manualFetch);
+router.get("/debug/clear", newsController.debugClearNews);
 router.get("/:id", newsController.getNewsDetail);
 
 export default router;

@@ -1,6 +1,6 @@
-import News from "../news/news.model.js";
+import News from "../../models/News.js";
 import Quiz from "./quiz.model.js";
-import { callDeepSeek } from "../../services/ai.service.js";
+import { callDeepSeek } from "../../services/aiService.js";
 import axios from "axios";
 import cron from "node-cron";
 

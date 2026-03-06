@@ -1,100 +1,87 @@
-import axios from "axios";
-import News from "../models/News.js";
+import fetchService from "./fetchService.js";
 import extractionService from "./extractionService.js";
-import dayjs from "dayjs";
+import aiService from "./aiService.js";
+import quizService from "./quizService.js";
+import { detectCategory, isIndiaNews } from "../utils/categoryDetector.js";
+import dateUtils from "../utils/dateUtils.js";
+import { withRetry } from "../utils/retryUtils.js";
+import News from "../models/News.js";
 
-const GNEWS_API = "https://gnews.io/api/v4/search";
-const NEWSAPI_API = "https://newsapi.org/v2/everything";
-const RSS_FEEDS = [];
-
-function normalizeTitle(title) {
-  return title.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-async function fetchFromGNews(query) {
+async function processArticle(article, source) {
   try {
-    const { data } = await axios.get(GNEWS_API, {
-      params: { q: query, token: process.env.GNEWS_API_KEY, max: 10 },
-      timeout: 7000
+    const url = article.url || article.link;
+
+    if (!url) return null;
+
+    const exists = await News.findOne({ url });
+    if (exists) return null;
+
+    const publishedAt = new Date(article.pubDate || article.publishedAt);
+
+    if (!dateUtils.isFresh(publishedAt)) return null;
+
+    const fullContent = await extractionService.extractFullContent(url);
+
+    if (!fullContent || fullContent.length < 500) return null;
+
+    const rewritten = await withRetry(() => aiService.rewriteArticle(fullContent));
+
+    const category = detectCategory(
+      (article.title || "") + " " + (rewritten || "")
+    );
+    const country = isIndiaNews((article.title || ""), (rewritten || "")) ? "india" : "world";
+
+    const quiz = await withRetry(() => quizService.generateQuiz(rewritten));
+
+    const newsDoc = new News({
+      title: article.title || "Untitled",
+      url,
+      source,
+      image: article.image_url || article.image || article.urlToImage || "",
+      content: fullContent,
+      rewrittenContent: rewritten,
+      category,
+      country,
+      quiz,
+      publishedAt,
+      isFresh: true
     });
-    return data.articles || [];
-  } catch (err) {
-    return [];
+
+    await newsDoc.save();
+
+    return newsDoc;
+
+  } catch (error) {
+    console.error(`Pipeline error processing article:`, error.message);
+    return null;
   }
 }
 
-async function fetchFromNewsAPI(query) {
-  try {
-    const { data } = await axios.get(NEWSAPI_API, {
-      params: { q: query, apiKey: process.env.NEWS_API_KEY, pageSize: 10 },
-      timeout: 7000
-    });
-    return data.articles || [];
-  } catch (err) {
-    return [];
-  }
-}
-
-async function fetchFromRSS(query) {
-  // Implement RSS fetch logic if needed
-  return [];
-}
-
-async function aggregateNews(query) {
-  let articles = await fetchFromGNews(query);
-  let source = "gnews";
-  if (!articles.length) {
-    articles = await fetchFromNewsAPI(query);
-    source = "newsapi";
-  }
-  if (!articles.length) {
-    articles = await fetchFromRSS(query);
-    source = "rss";
-  }
-
-  const seen = new Set();
-  const deduped = articles.filter(a => {
-    const key = (a.url || a.link) + "|" + normalizeTitle(a.title);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+async function runPipeline() {
+  const sources = [
+    { name: "newsdata", fn: async () => { const res = await fetchService.fetchNewsdata("top"); return res.results; } },
+    { name: "gnews", fn: async () => await fetchService.fetchGNews() },
+    { name: "rss", fn: async () => await fetchService.fetchRSS() }
+  ];
 
   const results = [];
-  for (const a of deduped) {
+
+  for (const src of sources) {
     try {
-      const fullContent = await extractionService.extractFullContent(a.url || a.link);
-      if (!fullContent || fullContent.length < 500) {
-        console.error(`[newsService] Skipping incomplete article: ${a.url || a.link}`);
-        continue;
+      const articles = await withRetry(src.fn);
+
+      if (!articles) continue;
+
+      for (const article of articles) {
+        const processed = await processArticle(article, src.name);
+        if (processed) results.push(processed);
       }
-      const publishedAtUTC = dayjs(a.publishedAt || a.pubDate).toDate();
-      const newsDoc = new News({
-        title: a.title,
-        originalUrl: a.url || a.link,
-        source,
-        image: a.image || a.urlToImage || "",
-        fullContent,
-        publishedAt: publishedAtUTC
-      });
-      await newsDoc.save();
-      console.log(`[newsService] Saved article: ${newsDoc.title}`);
-      results.push(newsDoc);
     } catch (err) {
-      if (err.code === 11000) {
-        console.error(`[newsService] Duplicate article skipped: ${a.url || a.link}`);
-      } else {
-        console.error(`[newsService] Error saving article: ${a.url || a.link}`, err.message);
-      }
+      console.error(`Error with source ${src.name}:`, err.message);
     }
   }
+
   return results;
 }
 
-async function getNewsById(id) {
-  const news = await News.findById(id);
-  if (!news || !news.fullContent) return null;
-  return news;
-}
-
-export default { aggregateNews, getNewsById };
+export default { runPipeline };

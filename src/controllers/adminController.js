@@ -1,4 +1,4 @@
-import News from "../modules/news/news.model.js";
+import News from "../models/News.js";
 import User from "../models/User.js";
 import Quiz from "../modules/quiz/quiz.model.js";
 import Category from "../models/Category.js";
