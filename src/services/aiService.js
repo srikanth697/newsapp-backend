@@ -1,6 +1,7 @@
-import axios from "axios";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 async function rewriteArticle(content) {
   const prompt = `
@@ -19,48 +20,60 @@ ${content}
 `;
 
   try {
-    const response = await axios.post(
-      DEEPSEEK_API,
-      {
-        model: "deepseek-chat",
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    return response.data.choices[0].message.content;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
   } catch (error) {
-    console.error("AI rewrite error:", error.message);
-    return content;
+    console.error("Gemini rewrite error:", error.message);
+    return null;
   }
 }
 
+async function generateQuiz(content) {
+  const prompt = `
+Generate a 5-question multiple choice quiz based on this news article.
+Format the output as a valid JSON array of objects.
+Do not include any other text, just the JSON array.
+Each object must have:
+- question (string)
+- options (array of 4 strings)
+- correctAnswer (string, must be one of the options)
+- explanation (string)
+
+Article:
+${content}
+`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+
+    // Clean up potential markdown formatting
+    if (text.includes("```json")) {
+      text = text.split("```json")[1].split("```")[0];
+    } else if (text.includes("```")) {
+      text = text.split("```")[1].split("```")[0];
+    }
+
+    return JSON.parse(text.trim());
+  } catch (error) {
+    console.error("Gemini quiz error:", error.message);
+    return [];
+  }
+}
+
+// Global Legacy Support for other modules
 export async function callDeepSeek(prompt, content) {
   try {
-    const response = await axios.post(
-      DEEPSEEK_API,
-      {
-        model: "deepseek-chat",
-        messages: [{ role: "user", content: prompt + "\n\n" + content }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    return response.data.choices[0].message.content;
+    const result = await model.generateContent(prompt + "\n\n" + content);
+    const response = await result.response;
+    return response.text().trim();
   } catch (error) {
-    console.error("AI deepseek call error:", error.message);
+    console.error("Gemini call error (legacy callDeepSeek):", error.message);
     throw error;
   }
 }
 
-export default { rewriteArticle };
+export { rewriteArticle, generateQuiz };
+export default { rewriteArticle, generateQuiz, callDeepSeek };

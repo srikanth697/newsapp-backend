@@ -8,7 +8,7 @@ dayjs.extend(timezone);
 function isFresh(publishedAt) {
     const now = dayjs();
     const diffHours = now.diff(dayjs(publishedAt), "hour");
-    return diffHours <= 1;
+    return diffHours <= 24;
 }
 
 export default { isFresh };
