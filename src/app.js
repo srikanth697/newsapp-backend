@@ -10,6 +10,7 @@ import newsRoutes from "./routes/newsRoutes.js";
 import quizRoutes from "./modules/quiz/quiz.routes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import { adminLogin } from "./controllers/authController.js";
+import { languageMiddleware } from "./middleware/languageMiddleware.js";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -17,6 +18,7 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
+app.use(languageMiddleware);
 
 // Routes
 app.use("/api/auth", authRoutes);

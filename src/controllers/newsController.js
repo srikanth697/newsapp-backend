@@ -45,11 +45,21 @@ const newsController = {
         .skip(skip)
         .limit(limit);
 
+      // Translate news fields if req.t exists
+      const translatedNews = news.map(item => {
+        return {
+          ...item.toObject(),
+          title: req.t && item.title ? req.t(item.title) : item.title,
+          description: req.t && item.description ? req.t(item.description) : item.description,
+          content: req.t && item.content ? req.t(item.content) : item.content,
+        };
+      });
+
       res.json({
         success: true,
-        count: news.length,
+        count: translatedNews.length,
         tab: tab || 'all',
-        news: news
+        news: translatedNews
       });
     } catch (err) {
       res.status(500).json({ success: false, message: err.message });
@@ -69,7 +79,14 @@ const newsController = {
       news.views = (news.views || 0) + 1;
       await news.save();
 
-      res.json({ success: true, news });
+      // Translate news fields if req.t exists
+      const translatedNews = news ? {
+        ...news.toObject(),
+        title: req.t && news.title ? req.t(news.title) : news.title,
+        description: req.t && news.description ? req.t(news.description) : news.description,
+        content: req.t && news.content ? req.t(news.content) : news.content,
+      } : null;
+      res.json({ success: true, news: translatedNews });
     } catch (err) {
       res.status(400).json({ success: false, message: "Invalid ID format or Error: " + err.message });
     }
