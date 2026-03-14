@@ -8,12 +8,16 @@ const languages = JSON.parse(fs.readFileSync(languagesPath, "utf-8"));
 function detectLanguage(req) {
 	// 1. Query param (?lang=)
 	let lang = req.query.lang;
-	// 2. Accept-Language header
+	// 2. Body param (if POST/PUT)
+	if (!lang && req.body) {
+		lang = req.body.lang || req.body.language;
+	}
+	// 3. Accept-Language header
 	if (!lang && req.headers["accept-language"]) {
 		const acceptLang = req.headers["accept-language"].split(",")[0].trim();
 		lang = acceptLang.split("-")[0]; // e.g., "en-US" → "en"
 	}
-	// 3. Fallback to English
+	// 4. Fallback to English
 	if (!lang || !languages[lang]) lang = "en";
 	return lang;
 }
